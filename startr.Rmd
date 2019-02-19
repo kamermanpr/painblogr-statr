@@ -1,0 +1,383 @@
+---
+title: "StatsAlive"
+output: 
+  flexdashboard::flex_dashboard:
+    navbar:
+     - { title: "Developed by PainblogR", icon: 'fa-home', href: "https://www.painblogr.org", align: right }
+    social: ['menu']
+    source_code: 'https://github.com/kamermanpr/stats-alive.git'
+runtime: shiny
+---
+
+```{r setup, include = FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(broom)
+library(skimr)
+skim_with(numeric = list(p0 = NULL, p25 = NULL, p50 = NULL, 
+                         p75 = NULL, p100 = NULL, hist = NULL,
+                         min = ~ min(., na.rm = TRUE),
+                         q25 = ~ quantile(., probs = 0.25, na.rm = TRUE),
+                         median = ~ quantile(., probs = 0.5, na.rm = TRUE),
+                         q75 = ~ quantile(., probs = 0.75, na.rm = TRUE),
+                         max = ~min(., na.rm = TRUE)))
+
+```
+
+Compare two groups
+=====================================  
+
+
+Inputs {.sidebar}
+-------------------------------------
+
+#### PROCEDURE
+1. Select a hypothesis test (default value: paired Student's _t_-test).  
+2. Select whether the first row of the uploaded file includes column headings (default value: true).  
+3. Select your data file and upload it.  
+
+#### NOTE 
+- Results will be generated automatically, and the output updated if you change the selected test.  
+- Upload continuous or discrete numeric data only. No count or frequency data.  
+- The uploaded file must be a CSV file consisting of two columns.  
+- For paired analyses, there must be one column for each of the two measurements made on an animal/person (incomplete pairs will be removed).  
+- For unpaired tests, there must be one column for each of the two groups data were collected from.  
+
+```{r}
+hr()
+selectInput(inputId = 'test', 
+            label = 'Choose a test',
+            choices = c('Paired: t-test', 'Paired: Wilcoxon signed-rank test', 
+                        'Unpaired: t-test', 'Unpaired: Mann-Whitney U test'))
+
+checkboxInput(inputId = 'csv_header', 
+              label = 'First row is a heading.', 
+              value = TRUE)
+
+fileInput(inputId = 'file_csv', 
+          label = 'Upload a CSV file',
+          multiple = FALSE,
+          accept = ".csv")
+```
+
+Row
+------------------------------------
+
+### Glimpse at the uploaded data
+
+```{r}
+df <- reactive({
+    req(input$file_csv)
+    read_csv(input$file_csv$datapath,
+             col_names = input$csv_header)
+    })
+
+renderPrint({
+    df()
+})
+```
+
+### Summary
+
+```{r}
+renderPrint({
+    skim(df())
+})
+``` 
+
+Row
+-------------------------------------  
+
+### Box-and-whisker plot
+
+```{r}
+renderPlot({
+    gathered <- df() %>% 
+        gather(key = key,
+               value = value)
+    
+    ggplot(data = gathered) +
+        aes(x = key,
+            y = value) +
+    geom_point(position = position_jitter(width = 0.3)) +
+    geom_boxplot(alpha = 0.5) +
+    stat_summary(fun.y = 'mean', 
+                 geom = 'point',
+                 shape = 8,
+                 stroke = 1,
+                 size = 4) +
+    scale_y_continuous(name = 'Value') +
+    theme_bw(base_size = 14) +
+    theme(axis.title.x = element_blank())
+    })
+```
+
+### Test summary
+
+```{r}
+renderPrint({
+    gathered <- df() %>% 
+        gather(key = key,
+               value = value)
+    
+    gathered_paired <- df() %>% 
+        filter(complete.cases(.)) %>% 
+        gather(key = key,
+               value = value)
+    
+    if(input$test == 'Paired: t-test') {
+        t.test(value ~ key,
+               data = gathered_paired,
+               paired = TRUE)
+        
+    } else if(input$test == 'Unpaired: t-test') {
+        t.test(value ~ key,
+               data = gathered,
+               na.rm = TRUE,
+               paired = FALSE)
+        
+    } else if(input$test == 'Paired: Wilcoxon signed-rank test') {
+        wilcox.test(value ~ key, 
+                    data = gathered_paired,
+                    exact = FALSE,
+                    paired = TRUE,
+                    confint = TRUE)
+        
+    } else {
+        wilcox.test(value ~ key,
+                    data = gathered,
+                    na.rm = TRUE,
+                    exact = FALSE,
+                    paired = FALSE,
+                    confint = TRUE)
+    }
+})
+```
+
+Correlation
+=====================================  
+    
+Inputs {.sidebar}
+-------------------------------------
+
+#### PROCEDURE
+1. Select the type of correlation (default value: Pearson's correlation). 
+2. Select whether you want a trend line included on the scatterplot (default value: true).
+3. Select whether the first row of the uploaded file includes column headings (default value: true).  
+4. Select your data file and upload it. 
+
+#### NOTE 
+- Results will be generated automatically, and the output updated if you change the selected test.  
+- Upload continuous or discrete numeric data only. No count or frequency data.  
+- The uploaded file must be a CSV file consisting of two columns.  
+- Missing data pairs will be removed. 
+
+```{r}
+hr()
+selectInput(inputId = 'test2', 
+            label = 'Choose a test',
+            choices = c("Pearson's correlation", "Spearman's correlation"))
+
+checkboxInput(inputId = 'trend_line2', 
+              label = 'Draw a trend line.', 
+              value = TRUE)
+
+checkboxInput(inputId = 'csv_header2', 
+              label = 'First row is a heading.', 
+              value = TRUE)
+
+fileInput(inputId = 'file_csv2', 
+          label = 'Upload a CSV file',
+          multiple = FALSE,
+          accept = ".csv")
+```
+
+Row
+------------------------------------
+
+### Glimpse at the uploaded data
+
+```{r}
+cor_data <- reactive({
+    req(input$file_csv2)
+    read_csv(input$file_csv2$datapath,
+             col_names = input$csv_header2)
+    })
+
+renderPrint({
+    cor_data()
+})
+```
+
+### Summary
+
+```{r}
+renderPrint({
+    skim(cor_data())
+})
+``` 
+
+Row
+-------------------------------------  
+
+### Scatterplot
+
+```{r}
+renderPlot({
+    if(input$trend_line2 == TRUE) {
+        ggplot(data = cor_data()) +
+        aes_string(x = colnames(cor_data())[1],
+                   y = colnames(cor_data())[2]) +
+            geom_point(shape = 21,
+                       size = 4,
+                       stroke = 0.8,
+                       fill = '#FFFFFF',
+                       alpha = 0.5) +
+            geom_smooth(method = 'loess',
+                        se = FALSE) +
+            theme_bw(base_size = 14)
+    
+    } else {
+        ggplot(data = cor_data()) +
+        aes_string(x = colnames(cor_data())[1],
+                   y = colnames(cor_data())[2]) +
+            geom_point(shape = 21,
+                       size = 4,
+                       stroke = 0.8,
+                       fill = '#FFFFFF',
+                       alpha = 0.5) +
+            theme_bw(base_size = 14)
+    }
+})
+```
+
+### Correlation summary
+
+```{r}
+renderPrint({
+    
+    corr <- cor_data() %>% 
+        filter(complete.cases(.)) %>% 
+        set_names(c('column_1.y', 'column_2.x'))
+    
+    if(input$test2 == "Pearson's correlation") {
+        with(corr, cor.test(x = column_2.x, 
+                            y = column_1.y, 
+                            method = 'pearson'))
+    } else {
+        with(corr, cor.test(x = column_2.x, 
+                            y = column_1.y, 
+                            method = 'spearman',
+                            exact = TRUE))
+    }
+})
+```
+
+Regression
+=====================================  
+    
+Inputs {.sidebar}
+-------------------------------------
+
+#### PROCEDURE
+1. Select whether you want to plot 95% confidence intervals for the regression line (default value: true) . 
+2. Select whether the first row of the uploaded file includes column headings (default value: true).
+3. Select your data file and upload it.  
+
+#### NOTE 
+- Ordinary least squares regression (OLS) only.  
+- Results will be generated automatically, and the output updated if you change the selected test.  
+- Upload continuous or discrete numeric data only. No count or frequency data.  
+- The uploaded file must be a CSV file consisting of two columns.  
+- The first column is assumed to be the dependent variable (_y_).  
+- Missing data pairs will be removed. 
+
+```{r}
+hr()
+checkboxInput(inputId = 'confint3', 
+              label = 'Plot 95% confidence interval.', 
+              value = TRUE)
+
+checkboxInput(inputId = 'csv_header3', 
+              label = 'First row is a heading.', 
+              value = TRUE)
+
+fileInput(inputId = 'file_csv3', 
+          label = 'Upload a CSV file',
+          multiple = FALSE,
+          accept = ".csv")
+```
+
+Row
+------------------------------------
+
+### Glimpse at the uploaded data
+
+```{r}
+lm_data <- reactive({
+    req(input$file_csv3)
+    read_csv(input$file_csv3$datapath,
+             col_names = input$csv_header3)
+    })
+
+
+renderPrint({
+    lm_data()
+})
+```
+
+### Summary
+
+```{r}
+renderPrint({
+    skim(lm_data())
+})
+``` 
+
+Row
+-------------------------------------  
+
+### Scatterplot
+
+```{r}
+renderPlot({
+    if(input$confint3 == TRUE) {
+        ggplot(data = lm_data()) +
+        aes_string(x = colnames(lm_data())[1],
+                   y = colnames(lm_data())[2]) +
+            geom_point(shape = 21,
+                       size = 4,
+                       stroke = 0.8,
+                       fill = '#FFFFFF',
+                       alpha = 0.5) +
+            geom_smooth(method = 'lm') +
+            theme_bw(base_size = 14)
+    
+    } else {
+        ggplot(data = lm_data()) +
+        aes_string(x = colnames(lm_data())[1],
+                   y = colnames(lm_data())[2]) +
+            geom_point(shape = 21,
+                       size = 4,
+                       stroke = 0.8,
+                       fill = '#FFFFFF',
+                       alpha = 0.5) +
+             geom_smooth(method = 'lm',
+                         se = FALSE) +
+            theme_bw(base_size = 14)
+    }
+})
+```
+
+### Regression summary
+
+```{r}
+renderPrint({
+    ols <- lm_data() %>% 
+        filter(complete.cases(.)) %>% 
+        set_names(c('column_1.y', 'column_2.x'))
+    
+    summary(lm(column_1.y ~ column_2.x, data = ols))
+})
+```
+
