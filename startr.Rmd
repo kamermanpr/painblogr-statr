@@ -353,7 +353,7 @@ Row
 
 ```{r}
 lm_data <- reactive({
-    req(input$filev3)
+    req(input$file3)
     
     if(input$type3 == TRUE) {
         read_csv(input$file3$datapath,
