@@ -125,7 +125,7 @@ renderPlot({
                  stroke = 1,
                  size = 4) +
     scale_y_continuous(name = 'Value') +
-    theme_bw(base_size = 14) +
+    theme_bw(base_size = 20) +
     theme(axis.title.x = element_blank())
     })
 ```
@@ -266,7 +266,7 @@ renderPlot({
                        alpha = 0.5) +
             geom_smooth(method = 'loess',
                         se = FALSE) +
-            theme_bw(base_size = 14)
+            theme_bw(base_size = 20)
     
     } else {
         ggplot(data = cor_data()) +
@@ -277,7 +277,7 @@ renderPlot({
                        stroke = 0.8,
                        fill = '#FFFFFF',
                        alpha = 0.5) +
-            theme_bw(base_size = 14)
+            theme_bw(base_size = 20)
     }
 })
 ```
@@ -394,7 +394,7 @@ renderPlot({
                        fill = '#FFFFFF',
                        alpha = 0.5) +
             geom_smooth(method = 'lm') +
-            theme_bw(base_size = 14)
+            theme_bw(base_size = 20)
     
     } else {
         ggplot(data = lm_data()) +
@@ -407,7 +407,7 @@ renderPlot({
                        alpha = 0.5) +
              geom_smooth(method = 'lm',
                          se = FALSE) +
-            theme_bw(base_size = 14)
+            theme_bw(base_size = 20)
     }
 })
 ```
