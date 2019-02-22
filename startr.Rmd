@@ -1,11 +1,11 @@
 ---
-title: "StatsAlive"
+title: "startr"
 output: 
   flexdashboard::flex_dashboard:
     navbar:
      - { title: "Developed by PainblogR", icon: 'fa-home', href: "https://www.painblogr.org", align: right }
     social: ['menu']
-    source_code: 'https://github.com/kamermanpr/stats-alive.git'
+    source_code: 'https://github.com/kamermanpr/painblogr-startr.git'
 runtime: shiny
 ---
 
@@ -14,6 +14,12 @@ library(flexdashboard)
 library(tidyverse)
 library(broom)
 library(skimr)
+library(knitr)
+library(kableExtra)
+library(readxl)
+library(car)
+library(gmodels)
+
 skim_with(numeric = list(p0 = NULL, p25 = NULL, p50 = NULL, 
                          p75 = NULL, p100 = NULL, hist = NULL,
                          min = ~ min(., na.rm = TRUE),
@@ -21,25 +27,27 @@ skim_with(numeric = list(p0 = NULL, p25 = NULL, p50 = NULL,
                          median = ~ quantile(., probs = 0.5, na.rm = TRUE),
                          q75 = ~ quantile(., probs = 0.75, na.rm = TRUE),
                          max = ~min(., na.rm = TRUE)))
-
 ```
 
-Compare two groups
+Two groups (paired and unpaired) {data-navmenu='Select a test'}
 =====================================  
 
 
-Inputs {.sidebar}
+Inputs {.sidebar data-width=350}
 -------------------------------------
 
-#### PROCEDURE
-1. Select a hypothesis test (default value: paired Student's _t_-test).  
-2. Select whether the first row of the uploaded file includes column headings (default value: true).  
-3. Select your data file and upload it.  
+#### Two groups
 
-#### NOTE 
+##### PROCEDURE
+1. Select a hypothesis test (default value: paired Student's _t_-test).  
+2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV).  
+3. Select whether the first row of the uploaded file includes column headings (default value: true).  
+4. Select your data file and upload it.  
+
+##### NOTE 
 - Results will be generated automatically, and the output updated if you change the selected test.  
 - Upload continuous or discrete numeric data only. No count or frequency data.  
-- The uploaded file must be a CSV file consisting of two columns.  
+- The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - For paired analyses, there must be one column for each of the two measurements made on an animal/person (incomplete pairs will be removed).  
 - For unpaired tests, there must be one column for each of the two groups data were collected from.  
 
@@ -50,14 +58,18 @@ selectInput(inputId = 'test',
             choices = c('Paired: t-test', 'Paired: Wilcoxon signed-rank test', 
                         'Unpaired: t-test', 'Unpaired: Mann-Whitney U test'))
 
-checkboxInput(inputId = 'csv_header', 
+checkboxInput(inputId = 'type', 
+              label = 'File is in CSV format.', 
+              value = TRUE)
+
+checkboxInput(inputId = 'header', 
               label = 'First row is a heading.', 
               value = TRUE)
 
-fileInput(inputId = 'file_csv', 
-          label = 'Upload a CSV file',
+fileInput(inputId = 'file', 
+          label = 'Upload the file',
           multiple = FALSE,
-          accept = ".csv")
+          accept = c('.csv', '.xls', '.xlsx'))
 ```
 
 Row
@@ -67,17 +79,23 @@ Row
 
 ```{r}
 df <- reactive({
-    req(input$file_csv)
-    read_csv(input$file_csv$datapath,
-             col_names = input$csv_header)
-    })
+    req(input$file)
+    
+    if(input$type == TRUE) {
+        read_csv(input$file$datapath,
+             col_names = input$header)
+    } else {
+        read_excel(input$file$datapath,
+                   col_names = input$header)
+    }
+})
 
 renderPrint({
     df()
 })
 ```
 
-### Summary
+### Tabular summary
 
 ```{r}
 renderPrint({
@@ -154,22 +172,25 @@ renderPrint({
 })
 ```
 
-Correlation
+Correlation {data-navmenu='Select a test'}
 =====================================  
     
-Inputs {.sidebar}
+Inputs {.sidebar data-width=350}
 -------------------------------------
 
-#### PROCEDURE
+#### Correlation
+
+##### PROCEDURE
 1. Select the type of correlation (default value: Pearson's correlation). 
 2. Select whether you want a trend line included on the scatterplot (default value: true).
-3. Select whether the first row of the uploaded file includes column headings (default value: true).  
-4. Select your data file and upload it. 
+3. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV). 
+4. Select whether the first row of the uploaded file includes column headings (default value: true).  
+5. Select your data file and upload it. 
 
-#### NOTE 
+##### NOTE 
 - Results will be generated automatically, and the output updated if you change the selected test.  
 - Upload continuous or discrete numeric data only. No count or frequency data.  
-- The uploaded file must be a CSV file consisting of two columns.  
+- The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - Missing data pairs will be removed. 
 
 ```{r}
@@ -182,14 +203,18 @@ checkboxInput(inputId = 'trend_line2',
               label = 'Draw a trend line.', 
               value = TRUE)
 
-checkboxInput(inputId = 'csv_header2', 
+checkboxInput(inputId = 'type2', 
+              label = 'File is in CSV format.', 
+              value = TRUE)
+
+checkboxInput(inputId = 'header2', 
               label = 'First row is a heading.', 
               value = TRUE)
 
-fileInput(inputId = 'file_csv2', 
-          label = 'Upload a CSV file',
+fileInput(inputId = 'file2', 
+          label = 'Upload the file',
           multiple = FALSE,
-          accept = ".csv")
+          accept = c('.csv', '.xls', '.xlsx'))
 ```
 
 Row
@@ -199,17 +224,23 @@ Row
 
 ```{r}
 cor_data <- reactive({
-    req(input$file_csv2)
-    read_csv(input$file_csv2$datapath,
-             col_names = input$csv_header2)
-    })
+    req(input$file2)
+    
+    if(input$type2 == TRUE) {
+        read_csv(input$file2$datapath,
+                 col_names = input$header2)
+    } else {
+        read_excel(input$file2$datapath,
+                   col_names = input$header2)
+    }
+})
 
 renderPrint({
     cor_data()
 })
 ```
 
-### Summary
+### Tabular summary
 
 ```{r}
 renderPrint({
@@ -273,22 +304,25 @@ renderPrint({
 })
 ```
 
-Regression
+Regression {data-navmenu='Select a test'}
 =====================================  
     
-Inputs {.sidebar}
+Inputs {.sidebar data-width=350}
 -------------------------------------
 
-#### PROCEDURE
-1. Select whether you want to plot 95% confidence intervals for the regression line (default value: true) . 
-2. Select whether the first row of the uploaded file includes column headings (default value: true).
-3. Select your data file and upload it.  
+#### Regression 
 
-#### NOTE 
+##### PROCEDURE
+1. Select whether you want to plot 95% confidence intervals for the regression line (default value: true). 
+2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV). 
+3. Select whether the first row of the uploaded file includes column headings (default value: true).  
+4. Select your data file and upload it. 
+
+##### NOTE 
 - Ordinary least squares regression (OLS) only.  
 - Results will be generated automatically, and the output updated if you change the selected test.  
 - Upload continuous or discrete numeric data only. No count or frequency data.  
-- The uploaded file must be a CSV file consisting of two columns.  
+- The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - The first column is assumed to be the dependent variable (_y_).  
 - Missing data pairs will be removed. 
 
@@ -298,14 +332,18 @@ checkboxInput(inputId = 'confint3',
               label = 'Plot 95% confidence interval.', 
               value = TRUE)
 
-checkboxInput(inputId = 'csv_header3', 
+checkboxInput(inputId = 'type3', 
+              label = 'File is in CSV format.', 
+              value = TRUE)
+
+checkboxInput(inputId = 'header3', 
               label = 'First row is a heading.', 
               value = TRUE)
 
-fileInput(inputId = 'file_csv3', 
-          label = 'Upload a CSV file',
+fileInput(inputId = 'file3', 
+          label = 'Upload the file',
           multiple = FALSE,
-          accept = ".csv")
+          accept = c('.csv', '.xls', '.xlsx'))
 ```
 
 Row
@@ -315,18 +353,23 @@ Row
 
 ```{r}
 lm_data <- reactive({
-    req(input$file_csv3)
-    read_csv(input$file_csv3$datapath,
-             col_names = input$csv_header3)
-    })
-
+    req(input$filev3)
+    
+    if(input$type3 == TRUE) {
+        read_csv(input$file3$datapath,
+                 col_names = input$header3)
+    } else {
+        read_excel(input$file3$datapath,
+                   col_names = input$header3)
+    }
+})
 
 renderPrint({
     lm_data()
 })
 ```
 
-### Summary
+### Tabular summary
 
 ```{r}
 renderPrint({
@@ -381,3 +424,150 @@ renderPrint({
 })
 ```
 
+Contingency tables {data-navmenu='Select a test'}
+=====================================  
+    
+Inputs {.sidebar data-width=350}
+-------------------------------------
+
+#### Contingency tables
+
+##### PROCEDURE
+1. Select whether you are entering raw data or summarised counts (default value: raw data). 
+2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV). 
+3. Select whether the first row of the uploaded file includes column headings (default value: true).  
+4. Select your data file and upload it. 
+
+##### NOTE 
+- Results will be generated automatically, and the output updated if you change the selected test.  
+- Upload count data only.  
+- If uploading raw data, the file must be a CSV/XLS/XLSX file consisting of two columns, with the data entered in long format.  
+- If uploading summarised data, the file must be a CSV/XLS/XLSX file consisting of three columns (two grouping columns and a count column).
+- Missing data pairs will be removed. 
+
+```{r}
+hr()
+selectInput(inputId = 'test4', 
+            label = 'Choose a test',
+            choices = c("Chi-squared", "Fisher's Exact", 
+                        "Mcnemar's"))
+
+selectInput(inputId = 'data_format4', 
+            label = 'Choose the data format',
+            choices = c("Raw data", "Summarised counts"))
+
+checkboxInput(inputId = 'type4', 
+              label = 'File is in CSV format.', 
+              value = TRUE)
+
+checkboxInput(inputId = 'header4', 
+              label = 'First row is a heading.', 
+              value = TRUE)
+
+fileInput(inputId = 'file4', 
+          label = 'Upload the file',
+          multiple = FALSE,
+          accept = c('.csv', '.xls', '.xlsx'))
+```
+
+Column
+------------------------------------
+
+### Mosaic plot
+
+```{r}
+conti_data <- reactive({
+    req(input$file4)
+    
+    if(input$type4 == TRUE) {
+        read_csv(input$file4$datapath,
+                 col_names = input$header3)
+    } else {
+        read_excel(input$file4$datapath,
+                   col_names = input$header3)
+    }
+})
+
+renderPlot({
+    if(input$data_format4 == 'Raw data') {
+        par(cex = 2)
+        mosaicplot(table(conti_data()),
+                   main = 'Mosaic plot of uploaded data',
+                   color = TRUE,
+                   cex.axis = 0.75)
+    } else {
+        tab4 <- conti_data() %>% 
+            uncount(count)
+        par(cex = 2)
+        mosaicplot(table(tab4),
+                   main = 'Mosaic plot of uploaded data',
+                   color = TRUE,
+                   cex.axis = 0.75)
+    }
+})
+```
+
+Column
+------------------------------------
+
+### Tabulated data and test results
+
+```{r}
+renderPrint({
+if(input$test4 == 'Chi-squared') {
+    if(input$data_format4 == 'Raw data') {
+        CrossTable(x = conti_data()[[1]], 
+                   y = conti_data()[[2]],
+                   prop.chisq = FALSE,
+                   chi = TRUE,
+                   dnn = c('Column 1', 'Column 2'),
+                   format = 'SPSS')
+    } else {
+        tab4 <- conti_data() %>% 
+            uncount(count)
+        CrossTable(x = tab4[[1]], 
+                   y = tab4[[2]],
+                   prop.chisq = FALSE,
+                   chi = TRUE,
+                   dnn = c('Column 1', 'Column 2'),
+                   format = 'SPSS')
+        }
+    } else if(input$test4 == "Fisher's Exact") {
+    if(input$data_format4 == 'Raw data') {
+        CrossTable(x = conti_data()[[1]], 
+                   y = conti_data()[[2]],
+                   prop.chisq = FALSE,
+                   fisher = TRUE,
+                   dnn = c('Column 1', 'Column 2'),
+                   format = 'SPSS')
+    } else {
+        tab4 <- conti_data() %>% 
+            uncount(count)
+        CrossTable(x = tab4[[1]], 
+                   y = tab4[[2]],
+                   prop.chisq = FALSE,
+                   fisher = TRUE,
+                   dnn = c('Column 1', 'Column 2'),
+                   format = 'SPSS')
+        }
+    } else {
+    if(input$data_format4 == 'Raw data') {
+        CrossTable(x = conti_data()[[1]], 
+                   y = conti_data()[[2]],
+                   prop.chisq = FALSE,
+                   mcnemar = TRUE,
+                   dnn = c('Column 1', 'Column 2'),
+                   format = 'SPSS')
+    } else {
+        tab4 <- conti_data() %>% 
+            uncount(count)
+        CrossTable(x = tab4[[1]], 
+                   y = tab4[[2]],
+                   prop.chisq = FALSE,
+                   mcnemar = TRUE,
+                   dnn = c('Column 1', 'Column 2'),
+                   format = 'SPSS')
+        }
+    }
+})
+```
