@@ -52,12 +52,16 @@ The app provides five groups of statistical tests that typically are taught in i
 
 5. Contingency tables  
     - Chi-squared tests ($\geq$ 2x2 tables)  
-    - Fisher's Exact test ($\geq$ 2x2 tables)  
+    - Fisher's Exact test ($\geq$ 2x2 tables) 
     - Mcnemar's test (repeated measures designs, 2x2 tables only)
 
 On the left side of each page associated with a group of tests (accessed through the _"Select a test"_ menu), detailed instructions are provided on how to enter the data. 
 
 **Please note:** In all cases where the test is an omnibus test (e.g., ANOVA), no pairwise _post-hoc_ tests are provided. 
+
+**Also note:** For the moment, the app throws very ugly and uninformative errors if you enter the wrong combination of inputs (e.g., have the CSV file option checked, but upload an XLSX file). I'll be making these errors more informative as I update the app. 
+
+**Lastly, if you encounter ANY errors or have some suggestions, please submit an issue on the <a href="https://github.com/kamermanpr/painblogr-startr/issues" target="_blank">GitHib repo</a>.**
     
 Compare 2 groups {data-navmenu='Select a test'}
 =====================================  
@@ -733,7 +737,7 @@ if(input$test4 == 'Chi-squared') {
                    dnn = c('Column 1', 'Column 2'),
                    format = 'SPSS')
     } else {
-        nam <- as.name(names(conti_data())[[3]])
+        nam <- as.name(names(conti_data()[3]))
         
         tab4 <- conti_data() %>% 
             uncount(!!nam)
@@ -744,8 +748,8 @@ if(input$test4 == 'Chi-squared') {
                    chi = TRUE,
                    dnn = c('Column 1', 'Column 2'),
                    format = 'SPSS')
-        }
-    } else if(input$test4 == "Fisher's Exact") {
+    }
+} else if(input$test4 == "Fisher's Exact") {
     if(input$data_format4 == 'Raw data') {
         CrossTable(x = conti_data()[[1]], 
                    y = conti_data()[[2]],
@@ -754,17 +758,19 @@ if(input$test4 == 'Chi-squared') {
                    dnn = c('Column 1', 'Column 2'),
                    format = 'SPSS')
     } else {
-        tab4 <- conti_data() %>% 
-            uncount(count)
+        nam <- as.name(names(conti_data()[3]))
         
-        CrossTable(x = tab4[[1]], 
-                   y = tab4[[2]],
+        tab4b <- conti_data() %>% 
+            uncount(!!nam)
+        
+        CrossTable(x = tab4b[[1]], 
+                   y = tab4b[[2]],
                    prop.chisq = FALSE,
                    fisher = TRUE,
                    dnn = c('Column 1', 'Column 2'),
                    format = 'SPSS')
-        }
-    } else {
+    }
+} else {
     if(input$data_format4 == 'Raw data') {
         CrossTable(x = conti_data()[[1]], 
                    y = conti_data()[[2]],
@@ -773,11 +779,13 @@ if(input$test4 == 'Chi-squared') {
                    dnn = c('Column 1', 'Column 2'),
                    format = 'SPSS')
     } else {
-        tab4 <- conti_data() %>% 
-            uncount(count)
+        nam <- as.name(names(conti_data()[3]))
         
-        CrossTable(x = tab4[[1]], 
-                   y = tab4[[2]],
+        tab4c <- conti_data() %>% 
+            uncount(!!nam)
+        
+        CrossTable(x = tab4c[[1]], 
+                   y = tab4c[[2]],
                    prop.chisq = FALSE,
                    mcnemar = TRUE,
                    dnn = c('Column 1', 'Column 2'),
