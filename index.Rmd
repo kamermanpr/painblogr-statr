@@ -12,10 +12,8 @@ runtime: shiny
 ```{r setup, include = FALSE}
 library(flexdashboard)
 library(tidyverse)
-library(broom)
+library(lme4)
 library(skimr)
-library(knitr)
-library(kableExtra)
 library(readxl)
 library(car)
 library(gmodels)
@@ -29,9 +27,40 @@ skim_with(numeric = list(p0 = NULL, p25 = NULL, p50 = NULL,
                          max = ~min(., na.rm = TRUE)))
 ```
 
-Two groups (paired and unpaired) {data-navmenu='Select a test'}
-=====================================  
+Welcome {data-navmenu='Select a test'}
+===================================== 
 
+Welcome to the `startr` app.
+
+**To start, choose the type of test using the menu labeled _"Select a test"_.** 
+
+The app provides five groups of statistical tests that typically are taught in introductory biostatistcs courses. These five groups, and the tests they include, are:
+
+1. Comparisons between two groups  
+    - Unpaired continuous data: Student's t-test and Mann-Whitney U test  
+    - Paired continuous data: Student's t-test and Wilcoxon signed-rank test  
+
+2. Comparisons between $\geq$ 3 groups  
+    - One-way Analysis of Variance (ANOVA) and Kruskal-Wallis test  
+    - Repeated-measures one-way ANOVA and Friedman test  
+
+3. Correlation  
+    - Pearson's product-moment correlation  
+    - Spearman's rank-order correlation  
+
+4. Linear regression  
+
+5. Contingency tables  
+    - Chi-squared tests ($\geq$ 2x2 tables)  
+    - Fisher's Exact test ($\geq$ 2x2 tables)  
+    - Mcnemar's test (repeated measures designs, 2x2 tables only)
+
+On the left side of each page associated with a group of tests (accessed through the _"Select a test"_ menu), detailed instructions are provided on how to enter the data. 
+
+**Please note:** In all cases where the test is an omnibus test (e.g., ANOVA), no pairwise _post-hoc_ tests are provided. 
+    
+Compare 2 groups {data-navmenu='Select a test'}
+=====================================  
 
 Inputs {.sidebar data-width=350}
 -------------------------------------
@@ -50,23 +79,24 @@ Inputs {.sidebar data-width=350}
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - For paired analyses, there must be one column for each of the two measurements made on an animal/person (incomplete pairs will be removed).  
 - For unpaired tests, there must be one column for each of the two groups data were collected from.  
+- See examples of the data structure  <a href="https://i.imgur.com/hiIlagp.png" target="_blank">here</a>
 
 ```{r}
 hr()
-selectInput(inputId = 'test', 
+selectInput(inputId = 'test0', 
             label = 'Choose a test',
-            choices = c('Paired: t-test', 'Paired: Wilcoxon signed-rank test', 
+            choices = c('Paired: t-test', 'Paired: Wilcoxon signed-rank test',
                         'Unpaired: t-test', 'Unpaired: Mann-Whitney U test'))
 
-checkboxInput(inputId = 'type', 
+checkboxInput(inputId = 'type0', 
               label = 'File is in CSV format.', 
               value = TRUE)
 
-checkboxInput(inputId = 'header', 
+checkboxInput(inputId = 'header0', 
               label = 'First row is a heading.', 
               value = TRUE)
 
-fileInput(inputId = 'file', 
+fileInput(inputId = 'file0', 
           label = 'Upload the file',
           multiple = FALSE,
           accept = c('.csv', '.xls', '.xlsx'))
@@ -79,14 +109,14 @@ Row
 
 ```{r}
 df <- reactive({
-    req(input$file)
+    req(input$file0)
     
-    if(input$type == TRUE) {
-        read_csv(input$file$datapath,
-             col_names = input$header)
+    if(input$type0 == TRUE) {
+        read_csv(input$file0$datapath,
+             col_names = input$header0)
     } else {
-        read_excel(input$file$datapath,
-                   col_names = input$header)
+        read_excel(input$file0$datapath,
+                   col_names = input$header0)
     }
 })
 
@@ -125,7 +155,7 @@ renderPlot({
                  stroke = 1,
                  size = 4) +
     scale_y_continuous(name = 'Value') +
-    theme_bw(base_size = 20) +
+    theme_bw(base_size = 18) +
     theme(axis.title.x = element_blank())
     })
 ```
@@ -172,6 +202,178 @@ renderPrint({
 })
 ```
 
+Compare $\geq$ 3 groups {data-navmenu='Select a test'}
+=====================================  
+
+Inputs {.sidebar data-width=350}
+-------------------------------------
+
+#### Analysis of Variance
+
+##### PROCEDURE
+1. Select whether you want to plot 95% confidence intervals for the regression line (default value: true). 
+2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV). 
+3. Select whether the first row of the uploaded file includes column headings (default value: true).  
+4. Select your data file and upload it. 
+
+##### NOTE 
+- Ordinary least squares regression (OLS) only.  
+- Results will be generated automatically, and the output updated if you change the selected test.  
+- Upload continuous or discrete numeric data only. No count or frequency data.  
+- The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
+- The first column for repeated measures designs (RM-ANOVA and Friedman test) is assumed to be the column that contains the grouping variable (e.g., subject ID).  
+- Missing data pairs will be removed for repreated measures designs. 
+- See examples of the data structure <a href="https://i.imgur.com/s9IxECNl.png" target="_blank">here</a>
+
+```{r}
+hr()
+selectInput(inputId = 'test1', 
+            label = 'Choose a test',
+            choices = c("ANOVA", "Repeated-measures ANOVA",
+                        "Kruskal-Wallis test", "Friedman test"))
+
+checkboxInput(inputId = 'type1', 
+              label = 'File is in CSV format.', 
+              value = TRUE)
+
+checkboxInput(inputId = 'header1', 
+              label = 'First row is a heading.', 
+              value = TRUE)
+
+fileInput(inputId = 'file1', 
+          label = 'Upload the file',
+          multiple = FALSE,
+          accept = c('.csv', '.xls', '.xlsx'))
+```
+
+Row
+------------------------------------
+
+### Glimpse at the uploaded data
+
+```{r}
+aov_data <- reactive({
+    req(input$file1)
+    
+    if(input$type1 == TRUE) {
+        read_csv(input$file1$datapath,
+                 col_names = input$header1)
+    } else {
+        read_excel(input$file1$datapath,
+                   col_names = input$header1)
+    }
+})
+
+renderPrint({
+    aov_data()
+})
+```
+
+### Tabular summary
+
+```{r}
+renderPrint({
+    if(input$test1 == 'ANOVA' | input$test1 == 'Kruskal-Wallis test'){
+        skim(aov_data())
+    } else {
+        nam_id <- as.name(names(aov_data()[1]))
+        
+        aov_data() %>% 
+            mutate(ID = as.character(!!nam_id)) %>% 
+            skim()
+    }
+})
+``` 
+
+Row
+-------------------------------------  
+
+### Scatterplot
+
+```{r}
+renderPlot({
+    if(input$test1 == 'ANOVA' | input$test1 == 'Kruskal-Wallis test') {
+        gathered <- aov_data() %>% 
+            gather(key = group,
+                   value = value)
+        
+        ggplot(data = gathered) +
+            aes(x = group,
+                y = value) +
+            geom_point(position = position_jitter(width = 0.3)) +
+            geom_boxplot(alpha = 0.5) +
+            stat_summary(fun.y = 'mean', 
+                         geom = 'point',
+                         shape = 8,
+                         stroke = 1,
+                         size = 4) +
+            scale_y_continuous(name = 'Value') +
+            theme_bw(base_size = 18) +
+            theme(axis.title.x = element_blank())
+    } else {
+        nam_id <- as.name(names(aov_data()[1]))
+        
+        fig_rep <- aov_data() %>% 
+            gather(key = group,
+                   value = value,
+                   - !!nam_id)
+        
+        ggplot(data = fig_rep) +
+            aes(x = group,
+                y = value) +
+            geom_point(position = position_jitter(width = 0.3)) +
+            geom_boxplot(alpha = 0.5) +
+            stat_summary(fun.y = 'mean', 
+                         geom = 'point',
+                         shape = 8,
+                         stroke = 1,
+                         size = 4) +
+            scale_y_continuous(name = 'Value') +
+            theme_bw(base_size = 18) +
+            theme(axis.title.x = element_blank())
+    }
+    
+})
+```
+
+### ANOVA summary
+
+```{r}
+renderPrint({
+    unpaired <- aov_data() %>% 
+        gather(key = group,
+               value = value)
+    
+    nam_id <- as.name(names(aov_data()[1]))
+    
+    paired <- aov_data() %>% 
+        filter(complete.cases(.)) %>%
+        gather(key = group,
+               value = value,
+               -!!nam_id) %>% 
+        rename(ID = !!nam_id) %>% 
+        mutate(ID = as.character(ID))
+    
+    if(input$test1 == 'ANOVA') {
+        Anova(lm(value ~ group,
+                 data = unpaired),
+              test.statistic = 'F')
+        
+    } else if(input$test1 == 'Kruskal-Wallis test') {
+        kruskal.test(value ~ factor(group),
+                     data = unpaired)
+        
+    } else if(input$test1 == 'Repeated-measures ANOVA') {
+        Anova(lmer(value ~ group + (1 | ID), 
+                   data = paired),
+              test.statistic = 'F')
+    } else {
+        friedman.test(value ~ group | ID, 
+                      data = paired)
+    }
+})
+```
+
 Correlation {data-navmenu='Select a test'}
 =====================================  
     
@@ -191,7 +393,8 @@ Inputs {.sidebar data-width=350}
 - Results will be generated automatically, and the output updated if you change the selected test.  
 - Upload continuous or discrete numeric data only. No count or frequency data.  
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
-- Missing data pairs will be removed. 
+- Missing data pairs will be removed.  
+- See examples of the data structure  <a href="https://i.imgur.com/vA5VF89l.png" target="_blank">here</a>
 
 ```{r}
 hr()
@@ -257,8 +460,8 @@ Row
 renderPlot({
     if(input$trend_line2 == TRUE) {
         ggplot(data = cor_data()) +
-        aes_string(x = colnames(cor_data())[1],
-                   y = colnames(cor_data())[2]) +
+            aes_string(x = colnames(cor_data())[1],
+                       y = colnames(cor_data())[2]) +
             geom_point(shape = 21,
                        size = 4,
                        stroke = 0.8,
@@ -266,18 +469,18 @@ renderPlot({
                        alpha = 0.5) +
             geom_smooth(method = 'loess',
                         se = FALSE) +
-            theme_bw(base_size = 20)
+            theme_bw(base_size = 18)
     
     } else {
         ggplot(data = cor_data()) +
-        aes_string(x = colnames(cor_data())[1],
-                   y = colnames(cor_data())[2]) +
+            aes_string(x = colnames(cor_data())[1],
+                       y = colnames(cor_data())[2]) +
             geom_point(shape = 21,
                        size = 4,
                        stroke = 0.8,
                        fill = '#FFFFFF',
                        alpha = 0.5) +
-            theme_bw(base_size = 20)
+            theme_bw(base_size = 18)
     }
 })
 ```
@@ -304,13 +507,13 @@ renderPrint({
 })
 ```
 
-Regression {data-navmenu='Select a test'}
+Linear regression {data-navmenu='Select a test'}
 =====================================  
     
 Inputs {.sidebar data-width=350}
 -------------------------------------
 
-#### Regression 
+#### Linear regression 
 
 ##### PROCEDURE
 1. Select whether you want to plot 95% confidence intervals for the regression line (default value: true). 
@@ -324,7 +527,9 @@ Inputs {.sidebar data-width=350}
 - Upload continuous or discrete numeric data only. No count or frequency data.  
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - The first column is assumed to be the dependent variable (_y_).  
-- Missing data pairs will be removed. 
+- Missing data pairs will be removed.  
+- See examples of the data structure  <a href="https://i.imgur.com/JtYMuj1.png" target="_blank">here</a> 
+
 
 ```{r}
 hr()
@@ -386,20 +591,20 @@ Row
 renderPlot({
     if(input$confint3 == TRUE) {
         ggplot(data = lm_data()) +
-        aes_string(x = colnames(lm_data())[1],
-                   y = colnames(lm_data())[2]) +
+            aes_string(x = colnames(lm_data())[2],
+                       y = colnames(lm_data())[1]) +
             geom_point(shape = 21,
                        size = 4,
                        stroke = 0.8,
                        fill = '#FFFFFF',
                        alpha = 0.5) +
             geom_smooth(method = 'lm') +
-            theme_bw(base_size = 20)
+            theme_bw(base_size = 18)
     
     } else {
         ggplot(data = lm_data()) +
-        aes_string(x = colnames(lm_data())[1],
-                   y = colnames(lm_data())[2]) +
+            aes_string(x = colnames(lm_data())[2],
+                       y = colnames(lm_data())[1]) +
             geom_point(shape = 21,
                        size = 4,
                        stroke = 0.8,
@@ -407,7 +612,7 @@ renderPlot({
                        alpha = 0.5) +
              geom_smooth(method = 'lm',
                          se = FALSE) +
-            theme_bw(base_size = 20)
+            theme_bw(base_size = 18)
     }
 })
 ```
@@ -443,7 +648,8 @@ Inputs {.sidebar data-width=350}
 - Upload count data only.  
 - If uploading raw data, the file must be a CSV/XLS/XLSX file consisting of two columns, with the data entered in long format.  
 - If uploading summarised data, the file must be a CSV/XLS/XLSX file consisting of three columns (two grouping columns and a count column).
-- Missing data pairs will be removed. 
+- Missing data pairs will be removed.  
+- See examples of the data structure  <a href="https://i.imgur.com/Cm7QNHVl.png" target="_blank">here</a>
 
 ```{r}
 hr()
@@ -496,9 +702,13 @@ renderPlot({
                    color = TRUE,
                    cex.axis = 0.75)
     } else {
+        nam <- as.name(names(conti_data())[[3]])
+        
         tab4 <- conti_data() %>% 
-            uncount(count)
+            uncount(!!nam)
+        
         par(cex = 2)
+        
         mosaicplot(table(tab4),
                    main = 'Mosaic plot of uploaded data',
                    color = TRUE,
@@ -523,8 +733,11 @@ if(input$test4 == 'Chi-squared') {
                    dnn = c('Column 1', 'Column 2'),
                    format = 'SPSS')
     } else {
+        nam <- as.name(names(conti_data())[[3]])
+        
         tab4 <- conti_data() %>% 
-            uncount(count)
+            uncount(!!nam)
+        
         CrossTable(x = tab4[[1]], 
                    y = tab4[[2]],
                    prop.chisq = FALSE,
@@ -543,6 +756,7 @@ if(input$test4 == 'Chi-squared') {
     } else {
         tab4 <- conti_data() %>% 
             uncount(count)
+        
         CrossTable(x = tab4[[1]], 
                    y = tab4[[2]],
                    prop.chisq = FALSE,
@@ -561,6 +775,7 @@ if(input$test4 == 'Chi-squared') {
     } else {
         tab4 <- conti_data() %>% 
             uncount(count)
+        
         CrossTable(x = tab4[[1]], 
                    y = tab4[[2]],
                    prop.chisq = FALSE,
