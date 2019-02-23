@@ -173,18 +173,18 @@ renderPrint({
         gather(key = key,
                value = value)
     
-    if(input$test == 'Paired: t-test') {
+    if(input$test0 == 'Paired: t-test') {
         t.test(value ~ key,
                data = gathered_paired,
                paired = TRUE)
         
-    } else if(input$test == 'Unpaired: t-test') {
+    } else if(input$test0 == 'Unpaired: t-test') {
         t.test(value ~ key,
                data = gathered,
                na.rm = TRUE,
                paired = FALSE)
         
-    } else if(input$test == 'Paired: Wilcoxon signed-rank test') {
+    } else if(input$test0 == 'Paired: Wilcoxon signed-rank test') {
         wilcox.test(value ~ key, 
                     data = gathered_paired,
                     exact = FALSE,
