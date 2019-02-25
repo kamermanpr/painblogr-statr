@@ -79,7 +79,7 @@ Inputs {.sidebar data-width=350}
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - For paired analyses, there must be one column for each of the two measurements made on an animal/person (incomplete pairs will be removed).  
 - For unpaired tests, there must be one column for each of the two groups data were collected from.  
-- See examples of the data structure  <a href="https://i.imgur.com/hiIlagp.png" target="_blank">here</a>
+- See examples of the data structure  <a href="https://drive.google.com/file/d/1dwelSQU61MRZALmlwLJ_IuOsy8OBHJY9/view?usp=sharing" target="_blank">here</a>
 
 ```{r}
 hr()
@@ -211,19 +211,18 @@ Inputs {.sidebar data-width=350}
 #### Analysis of Variance
 
 ##### PROCEDURE
-1. Select whether you want to plot 95% confidence intervals for the regression line (default value: true). 
-2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV). 
+1. Select a hypothesis test (default value: ANOVA).  
+2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV).  
 3. Select whether the first row of the uploaded file includes column headings (default value: true).  
-4. Select your data file and upload it. 
+4. Select your data file and upload it.  
 
 ##### NOTE 
-- Ordinary least squares regression (OLS) only.  
 - Results will be generated automatically, and the output updated if you change the selected test.  
 - Upload continuous or discrete numeric data only. No count or frequency data.  
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - The first column for repeated measures designs (RM-ANOVA and Friedman test) is assumed to be the column that contains the grouping variable (e.g., subject ID).  
 - Missing data pairs will be removed for repreated measures designs. 
-- See examples of the data structure <a href="https://i.imgur.com/s9IxECNl.png" target="_blank">here</a>
+- See examples of the data structure <a href="https://drive.google.com/file/d/1D-cNaNxQnbbkWbXTdRRgvl0W1E7XMO5l/view?usp=sharing" target="_blank">here</a>
 
 ```{r}
 hr()
@@ -394,7 +393,7 @@ Inputs {.sidebar data-width=350}
 - Upload continuous or discrete numeric data only. No count or frequency data.  
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - Missing data pairs will be removed.  
-- See examples of the data structure  <a href="https://i.imgur.com/vA5VF89l.png" target="_blank">here</a>
+- See examples of the data structure  <a href="https://drive.google.com/file/d/1PeWH4De1TKi_yfhGMyhJxpqIu331RhEq/view?usp=sharing" target="_blank">here</a>
 
 ```{r}
 hr()
@@ -528,7 +527,7 @@ Inputs {.sidebar data-width=350}
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - The first column is assumed to be the dependent variable (_y_).  
 - Missing data pairs will be removed.  
-- See examples of the data structure  <a href="https://i.imgur.com/JtYMuj1.png" target="_blank">here</a> 
+- See examples of the data structure  <a href="https://drive.google.com/file/d/1FPfJnQ_ZCTMSe0SVtO2RhagpL4lmWe__/view?usp=sharing" target="_blank">here</a> 
 
 
 ```{r}
@@ -649,7 +648,7 @@ Inputs {.sidebar data-width=350}
 - If uploading raw data, the file must be a CSV/XLS/XLSX file consisting of two columns, with the data entered in long format.  
 - If uploading summarised data, the file must be a CSV/XLS/XLSX file consisting of three columns (two grouping columns and a count column).
 - Missing data pairs will be removed.  
-- See examples of the data structure  <a href="https://i.imgur.com/Cm7QNHVl.png" target="_blank">here</a>
+- See examples of the data structure  <a href="https://drive.google.com/file/d/1NnQYJgCZridAm9NySPrco9353gjhpkKL/view?usp=sharing" target="_blank">here</a>
 
 ```{r}
 hr()
