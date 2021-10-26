@@ -17,6 +17,7 @@ library(skimr)
 library(readxl)
 library(car)
 library(gmodels)
+library(janitor)
 
 skim_with(numeric = list(p0 = NULL, p25 = NULL, p50 = NULL, 
                          p75 = NULL, p100 = NULL, hist = NULL,
@@ -79,7 +80,7 @@ Inputs {.sidebar data-width=350}
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - For paired analyses, there must be one column for each of the two measurements made on an animal/person (incomplete pairs will be removed).  
 - For unpaired tests, there must be one column for each of the two groups data were collected from.  
-- See examples of the data structure  <a href="https://drive.google.com/file/d/1dwelSQU61MRZALmlwLJ_IuOsy8OBHJY9/view?usp=sharing" target="_blank">here</a>
+- See examples of the data structure  <a href="https://drive.google.com/file/d/16-bbwhByyNzdjVkebKd_ePiTCjggpWR6/view?usp=sharing" target="_blank">here</a>
 
 ```{r}
 hr()
@@ -111,12 +112,25 @@ Row
 df <- reactive({
     req(input$file0)
     
-    if(input$type0 == TRUE) {
+    if(input$type0 == TRUE & input$header0 == TRUE) {
         read_csv(input$file0$datapath,
-             col_names = input$header0)
+                 col_names = input$header0) %>% 
+        clean_names()
+      
+    } else if(input$type0 == TRUE & input$header0 == FALSE){
+        read_csv(input$file0$datapath,
+                 col_names = input$header0) %>% 
+        setNames(nm = c('X1', 'X2'))
+      
+    } else if(input$type0 == FALSE & input$header0 == TRUE) {
+        read_excel(input$file0$datapath,
+                   col_names = input$header0) %>% 
+        clean_names()
+      
     } else {
         read_excel(input$file0$datapath,
-                   col_names = input$header0)
+                   col_names = input$header0) %>% 
+        setNames(nm = c('X1', 'X2'))
     }
 })
 
@@ -222,7 +236,7 @@ Inputs {.sidebar data-width=350}
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - The first column for repeated measures designs (RM-ANOVA and Friedman test) is assumed to be the column that contains the grouping variable (e.g., subject ID).  
 - Missing data pairs will be removed for repreated measures designs. 
-- See examples of the data structure <a href="https://drive.google.com/file/d/1D-cNaNxQnbbkWbXTdRRgvl0W1E7XMO5l/view?usp=sharing" target="_blank">here</a>
+- See examples of the data structure <a href="https://drive.google.com/file/d/1u1Km0zyTz4Ld385En6zNLUIZPYUf_oMF/view?usp=sharing" target="_blank">here</a>
 
 ```{r}
 hr()
@@ -254,12 +268,27 @@ Row
 aov_data <- reactive({
     req(input$file1)
     
-    if(input$type1 == TRUE) {
+    if(input$type1 == TRUE & input$header1 == TRUE) {
         read_csv(input$file1$datapath,
-                 col_names = input$header1)
-    } else {
+                 col_names = input$header1) %>% 
+        clean_names()
+      
+    } else if(input$type1 == TRUE & input$header1 == FALSE){
+        n <- dim(input$file1)[2]
+        read_csv(input$file1$datapath,
+                 col_names = input$header1) %>% 
+        setNames(nm = LETTERS[1:n])
+      
+    } else if(input$type1 == FALSE & input$header1 == TRUE) {
         read_excel(input$file1$datapath,
-                   col_names = input$header1)
+                   col_names = input$header1) %>% 
+        clean_names()
+      
+    } else {
+        n <- dim(input$file1)[2]
+        read_excel(input$file1$datapath,
+                   col_names = input$header1) %>% 
+        setNames(nm = LETTERS[1:n])
     }
 })
 
@@ -287,7 +316,7 @@ renderPrint({
 Row
 -------------------------------------  
 
-### Scatterplot
+### Box-and-whisker plot
 
 ```{r}
 renderPlot({
@@ -393,7 +422,7 @@ Inputs {.sidebar data-width=350}
 - Upload continuous or discrete numeric data only. No count or frequency data.  
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - Missing data pairs will be removed.  
-- See examples of the data structure  <a href="https://drive.google.com/file/d/1PeWH4De1TKi_yfhGMyhJxpqIu331RhEq/view?usp=sharing" target="_blank">here</a>
+- See examples of the data structure  <a href="https://drive.google.com/file/d/1-_7rD0M29lnRzzmFFvKeHJqGBcq9_FNG/view?usp=sharing" target="_blank">here</a>
 
 ```{r}
 hr()
@@ -428,12 +457,25 @@ Row
 cor_data <- reactive({
     req(input$file2)
     
-    if(input$type2 == TRUE) {
+    if(input$type2 == TRUE & input$header2 == TRUE) {
         read_csv(input$file2$datapath,
-                 col_names = input$header2)
+                 col_names = input$header2) %>% 
+        clean_names()
+      
+    } else if(input$type2 == TRUE & input$header2 == FALSE){
+        read_csv(input$file2$datapath,
+                 col_names = input$header2) %>% 
+        setNames(nm = c('X', 'Y'))
+      
+    } else if(input$type2 == FALSE & input$header2 == TRUE) {
+        read_excel(input$file2$datapath,
+                   col_names = input$header2) %>% 
+        clean_names()
+      
     } else {
         read_excel(input$file2$datapath,
-                   col_names = input$header2)
+                   col_names = input$header2) %>% 
+        setNames(nm = c('X', 'Y'))
     }
 })
 
@@ -491,15 +533,15 @@ renderPrint({
     
     corr <- cor_data() %>% 
         filter(complete.cases(.)) %>% 
-        set_names(c('column_1.y', 'column_2.x'))
+        set_names(c('column_1.x', 'column_2.y'))
     
     if(input$test2 == "Pearson's correlation") {
-        with(corr, cor.test(x = column_2.x, 
-                            y = column_1.y, 
+        with(corr, cor.test(x = column_1.x, 
+                            y = column_2.y, 
                             method = 'pearson'))
     } else {
-        with(corr, cor.test(x = column_2.x, 
-                            y = column_1.y, 
+        with(corr, cor.test(x = column_1.x, 
+                            y = column_2.y, 
                             method = 'spearman',
                             exact = TRUE))
     }
@@ -527,7 +569,7 @@ Inputs {.sidebar data-width=350}
 - The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
 - The first column is assumed to be the dependent variable (_y_).  
 - Missing data pairs will be removed.  
-- See examples of the data structure  <a href="https://drive.google.com/file/d/1FPfJnQ_ZCTMSe0SVtO2RhagpL4lmWe__/view?usp=sharing" target="_blank">here</a> 
+- See examples of the data structure  <a href="https://drive.google.com/file/d/1ADvtOlIND9d_YTFBgN_0jPQpKiubSwfD/view?usp=sharing" target="_blank">here</a> 
 
 
 ```{r}
@@ -558,13 +600,26 @@ Row
 ```{r}
 lm_data <- reactive({
     req(input$file3)
-    
-    if(input$type3 == TRUE) {
+  
+    if(input$type3 == TRUE & input$header3 == TRUE) {
         read_csv(input$file3$datapath,
-                 col_names = input$header3)
+                 col_names = input$header3) %>% 
+        clean_names()
+      
+    } else if(input$type3 == TRUE & input$header3 == FALSE){
+        read_csv(input$file3$datapath,
+                 col_names = input$header3) %>% 
+        setNames(nm = c('X', 'Y'))
+      
+    } else if(input$type3 == FALSE & input$header3 == TRUE) {
+        read_excel(input$file3$datapath,
+                   col_names = input$header3) %>% 
+        clean_names()
+      
     } else {
         read_excel(input$file3$datapath,
-                   col_names = input$header3)
+                   col_names = input$header3) %>% 
+        setNames(nm = c('X', 'Y'))
     }
 })
 
@@ -622,9 +677,9 @@ renderPlot({
 renderPrint({
     ols <- lm_data() %>% 
         filter(complete.cases(.)) %>% 
-        set_names(c('column_1.y', 'column_2.x'))
+        set_names(c('column_1.x', 'column_2.y'))
     
-    summary(lm(column_1.y ~ column_2.x, data = ols))
+    summary(lm(column_2.y ~ column_1.x, data = ols))
 })
 ```
 
@@ -648,7 +703,7 @@ Inputs {.sidebar data-width=350}
 - If uploading raw data, the file must be a CSV/XLS/XLSX file consisting of two columns, with the data entered in long format.  
 - If uploading summarised data, the file must be a CSV/XLS/XLSX file consisting of three columns (two grouping columns and a count column).
 - Missing data pairs will be removed.  
-- See examples of the data structure  <a href="https://drive.google.com/file/d/1NnQYJgCZridAm9NySPrco9353gjhpkKL/view?usp=sharing" target="_blank">here</a>
+- See examples of the data structure  <a href="https://drive.google.com/file/d/1HrvFwDZx0BAJmMWgcrKNoMUoyH64P3SW/view?usp=sharing" target="_blank">here</a>
 
 ```{r}
 hr()
