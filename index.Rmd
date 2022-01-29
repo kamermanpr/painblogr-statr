@@ -31,9 +31,11 @@ skim_with(numeric = list(p0 = NULL, p25 = NULL, p50 = NULL,
 Welcome {data-navmenu='Select a test'}
 ===================================== 
 
-Welcome to the `statr` app.
+Welcome to the `statr` app. 
 
-**To start, choose the type of test using the menu labeled _"Select a test"_.** 
+To plot your data, please try the companion app, [`plotr`](https://kamermanpr.shinyapps.io/painblogr-plotr/){ target='_blank' }
+
+**To start, choose the test you want from the drop-down menu labelled _“Select a test”_.**
 
 The app provides five groups of statistical tests that typically are taught in introductory biostatistcs courses. These five groups, and the tests they include, are:
 
