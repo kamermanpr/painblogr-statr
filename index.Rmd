@@ -3,7 +3,6 @@ title: "statr"
 output: 
   flexdashboard::flex_dashboard:
     navbar:
-     - { title: "Developed by PainblogR", icon: 'fa-home', href: "https://www.painblogr.org", align: right }
     social: ['menu']
     source_code: 'https://github.com/kamermanpr/painblogr-statr.git'
 runtime: shiny
@@ -11,10 +10,12 @@ runtime: shiny
 
 ```{r setup, include = FALSE}
 library(flexdashboard)
-library(tidyverse)
+library(dplyr)
+library(tidyr)
 library(lme4)
 library(skimr)
 library(readxl)
+library(readr)
 library(car)
 library(gmodels)
 library(janitor)
@@ -25,7 +26,7 @@ skim_with(numeric = list(p0 = NULL, p25 = NULL, p50 = NULL,
                          q25 = ~ quantile(., probs = 0.25, na.rm = TRUE),
                          median = ~ quantile(., probs = 0.5, na.rm = TRUE),
                          q75 = ~ quantile(., probs = 0.75, na.rm = TRUE),
-                         max = ~min(., na.rm = TRUE)))
+                         max = ~max(., na.rm = TRUE)))
 ```
 
 Welcome {data-navmenu='Select a test'}
