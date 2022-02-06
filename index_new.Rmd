@@ -10,836 +10,333 @@ runtime: shiny
 
 ```{r setup, include = FALSE}
 library(flexdashboard)
+library(shiny)
 library(dplyr)
 library(tidyr)
-library(lme4)
-library(skimr)
 library(readxl)
 library(readr)
-library(car)
-library(gmodels)
+#library(lme4)
+library(skimr)
+#library(car)
+#library(gmodels)
 library(janitor)
 
-skim_with(numeric = list(p0 = NULL, p25 = NULL, p50 = NULL, 
-                         p75 = NULL, p100 = NULL, hist = NULL,
-                         min = ~ min(., na.rm = TRUE),
-                         q25 = ~ quantile(., probs = 0.25, na.rm = TRUE),
-                         median = ~ quantile(., probs = 0.5, na.rm = TRUE),
-                         q75 = ~ quantile(., probs = 0.75, na.rm = TRUE),
-                         max = ~max(., na.rm = TRUE)))
+# skimr variables
+my_skim <- skim_with(base = sfl(Missing = n_missing,
+                                Complete = n_complete),
+                     numeric = sfl(mean = NULL, sd = NULL,
+                                   p0 = NULL, p25 = NULL, p50 = NULL, 
+                                   p75 = NULL, p100 = NULL, hist = NULL,
+                                   Mean = ~ mean(., na.rm = TRUE),
+                                   SD = ~ sd(., na.rm = TRUE),
+                                   Min = ~ min(., na.rm = TRUE),
+                                   Q1 = ~ quantile(., probs = 0.25, na.rm = TRUE),
+                                   Median = ~ quantile(., probs = 0.5, na.rm = TRUE),
+                                   Q3 = ~ quantile(., probs = 0.75, na.rm = TRUE),
+                                   Max = ~max(., na.rm = TRUE)),
+                     factor = sfl(ordered = NULL,
+                                  top_counts = NULL,
+                                  `Top 3 levels` = ~ top_counts(., 
+                                                                max_char = 15,
+                                                                max_levels = 3)))
 ```
 
-Welcome {data-navmenu='Select a test'}
+```{r eval = FALSE}
+# Packages
+library(stringr)
+library(palmerpenguins)
+
+# Datasets
+## Long format
+### Iris
+iris %>% 
+    write_csv(file = 'data/iris_original.csv')
+
+iris %>% 
+    group_by(Species) %>% 
+    slice_head(n = 5) %>% 
+    ungroup() %>% 
+    select(Species, everything()) %>% 
+    write_csv(file = 'data/iris_reduced.csv')
+
+### Penguins
+penguins %>% 
+    write_csv(file = 'data/penguins_orginal.csv')
+
+penguins %>% 
+    filter(complete.cases(.)) %>% 
+    group_by(species, island) %>% 
+    slice_head(n = 3) %>% 
+    ungroup() %>% 
+    select(-year) %>% 
+    select(species, everything()) %>% 
+    write_csv(file = 'data/penguins_sample.csv')
+```
+
+Welcome {data-nav='Welcome'}
 ===================================== 
 
-Welcome to the `statr` app. 
+<!--- <a href='https://www.wits.ac.za' target='_blank'>
+<img src='wits-logo.png' 
+alt='Wits give you the edge' 
+width='25%'>
+</a> --->
 
-To plot your data, please try the companion app, [`plotr`](https://kamermanpr.shinyapps.io/painblogr-plotr/){ target='_blank' }
+**Welcome**  
 
-**To start, choose the test you want from the drop-down menu labelled _“Select a test”_.**
+The app provides basic statistical tests (e.g., t-test, ANOVA, correlation, linear regression)
 
-The app provides five groups of statistical tests that typically are taught in introductory biostatistcs courses. These five groups, and the tests they include, are:
+To plot your data, please use the companion app, [`plotr`](https://kamermanpr.shinyapps.io/painblogr-plotr/){ target='_blank' }
 
-1. Comparisons between two groups  
-    - Unpaired continuous data: Student's t-test and Mann-Whitney U test  
-    - Paired continuous data: Student's t-test and Wilcoxon signed-rank test  
+**Steps to analysing your data**  
 
-2. Comparisons between $\geq$ 3 groups  
-    - One-way Analysis of Variance (ANOVA) and Kruskal-Wallis test  
-    - Repeated-measures one-way ANOVA and Friedman test  
+- Go to the _"Upload data"_ page, upload your data and choose the variables according to whether they are numeric values or categorical values
 
-3. Correlation  
-    - Pearson's product-moment correlation  
-    - Spearman's rank-order correlation  
+- Once the data have been uploaded and variables selected, choose the type of analysis you want from the drop-down menu labelled _“Analysis”_.
 
-4. Linear regression  
+- Select the variables to analyse (summary information, basic plots, and the results of the statistical test will be auto-generated).
 
-5. Contingency tables  
-    - Chi-squared tests ($\geq$ 2x2 tables)  
-    - Fisher's Exact test ($\geq$ 2x2 tables)  
-    - Mcnemar's test (repeated measures designs, 2x2 tables only)
+**Data format**  
 
-On the left side of each page associated with a group of tests (accessed through the _"Select a test"_ menu), detailed instructions are provided on how to enter the data. 
+Only comma-separated values (CSV) and MS Excel (XLSX and XLS) files can be uploaded. The first row of the file must be column headings, and for repeated measure study designs, at least one of the columns must provide observation IDs (e.g., unique participant/patient numbers). Lastly, the data must be "tidy". 
 
-**Please note:** In all cases where the test is an omnibus test (e.g., ANOVA), no pairwise _post-hoc_ tests are provided. 
-    
-Compare 2 groups {data-navmenu='Select a test'}
-=====================================  
+By "tidy", we mean that the data must be arranged in "long" format such that:
 
-Inputs {.sidebar data-width=350}
+- Each row contains data from an observation. Where data are collected from the same individuals on multiple occasions, each observation of an individual must be placed in a separate row (see the "Tidy data with repeated measures" example below).  
+
+- Each column contains only one variable.
+
+- Each value must have its own cell
+
+<div>
+<p>
+<strong>Tidy data</strong>
+</p>
+<img src='tidy-data.png' width='60%'>
+</div>
+
+<div>
+<p>
+<strong>Tidy data with repeated measures</strong>
+</p>
+<img src='tidy-data_RM.png' width='70%'>
+</div>
+
+For a full description of tidy data, please use the following [link](https://www.jstatsoft.org/article/view/v059i10){ target='_blank' }.
+
+To download a dataset to play around with on the app, we recommend [Allison Horst's](https://allisonhorst.github.io/palmerpenguins/index.html){ target='_blank' } "Palmer Penguins" dataset ([link to data](https://drive.google.com/open?id=1-8H1Mz2_oEMu3zlVsatraFruJQlCFqZ9&authuser=peter.kamerman%40gmail.com&usp=drive_fs){ target='_blank' })
+
+**Developers**  
+
+The app was developed by Peter Kamerman (WWW: [painblogr.org](https://www.painblogr.org){ target='_blank'}, GitHub: [kamermanpr](https://github.com/kamermanpr){ target='_blank' }).
+
+Please cite this app as: Kamerman PR (2021). statr: online statistical tests. Version: v0.1.3. DOI: [10.5281/zenodo.5977332](https://doi.org/10.5281/zenodo.5977332).
+
+**License**  
+
+The software is released under an [MIT license](https://github.com/kamermanpr/painblogr-statr/blob/main/LICENSE){ target='_blank' }.
+
+**Issues**
+
+To report any issues you have with the app, please use the following [link](https://github.com/kamermanpr/painblogr-statr/issues){ target='_blank' }.
+
+**Software citations**
+
+- R Core Team (2021). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. URL: [https://www.R-project.org/](https://www.R-project.org/){ target='_blank' }.
+
+- Jeffrey B. Arnold (2021). ggthemes: Extra Themes, Scales and Geoms for 'ggplot2'. R package version 4.2.4. URL: [https://CRAN.R-project.org/package=ggthemes](https://CRAN.R-project.org/package=ggthemes){ target='_blank' }.
+  
+- Winston Chang, Joe Cheng, JJ Allaire, Carson Sievert, Barret Schloerke, Yihui Xie, Jeff Allen, Jonathan McPherson, Alan Dipert and Barbara Borges (2021). shiny: Web Application Framework for R. R package version 1.7.1. URL: [https://CRAN.R-project.org/package=shiny](https://CRAN.R-project.org/package=shiny){ target='_blank' }.
+  
+- Lionel Henry and Hadley Wickham (2021). rlang: Functions for Base Types and Core R and 'Tidyverse' Features. R package version 0.4.12. URL: [https://CRAN.R-project.org/package=rlang](https://CRAN.R-project.org/package=rlang){ target='_blank' }.
+
+- Richard Iannone, JJ Allaire and Barbara Borges (2020). flexdashboard: R Markdown Format for Flexible Dashboards. R package version 0.5.2. URL: [https://CRAN.R-project.org/package=flexdashboard](https://CRAN.R-project.org/package=flexdashboard){ target='_blank' }.
+
+- Elin Waring, Michael Quinn, Amelia McNamara, Eduardo Arino de la Rubia, Hao Zhu and Shannon Ellis (2021). skimr: Compact and Flexible Summaries of Data. R package version 2.1.3. URL: [https://CRAN.R-project.org/package=skimr](https://CRAN.R-project.org/package=skimr){ target='_blank' }.
+
+- Hadley Wickham, Romain François, Lionel Henry and Kirill Müller (2021). dplyr: A Grammar of Data Manipulation. R package version 1.0.7. URL: [https://CRAN.R-project.org/package=dplyr](https://CRAN.R-project.org/package=dplyr){ target='_blank' }.
+
+- Hadley Wickham, Jim Hester and Jennifer Bryan (2021). readr: Read Rectangular Text Data. R package version 2.1.1. URL: [https://CRAN.R-project.org/package=readr](https://CRAN.R-project.org/package=readr){ target='_blank' }.
+
+- Hadley Wickham (2021). tidyr: Tidy Messy Data. R package version 1.1.4. URL: [https://CRAN.R-project.org/package=tidyr](https://CRAN.R-project.org/package=tidyr){ target='_blank' }.
+
+- Hadley Wickham and Jennifer Bryan (2019). readxl: Read Excel Files. R package version 1.3.1. URL: [https://CRAN.R-project.org/package=readxl](https://CRAN.R-project.org/package=readxl){ target='_blank' }.
+
+- Hadley Wickham (2016). ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag, New York.
+
+Upload data {data-nav='Upload data'}
+=====================================
+
+Column {.sidebar data-width=350}
 -------------------------------------
 
-#### Two groups
+```{r upload_1}
+h1('Upload data')
 
-##### PROCEDURE
-1. Select a hypothesis test (default value: paired Student's _t_-test).  
-2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV).  
-3. Select whether the first row of the uploaded file includes column headings (default value: true).  
-4. Select your data file and upload it.  
+p('Once the data have been uploaded, choose all variables that should be treated as numeric variables, and all variables that should be treated as categorical variables.')
 
-##### NOTE 
-- Results will be generated automatically, and the output updated if you change the selected test.  
-- Upload continuous or discrete numeric data only. No count or frequency data.  
-- The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
-- For paired analyses, there must be one column for each of the two measurements made on an animal/person (incomplete pairs will be removed).  
-- For unpaired tests, there must be one column for each of the two groups data were collected from.  
-- See examples of the data structure  <a href="https://drive.google.com/file/d/16-bbwhByyNzdjVkebKd_ePiTCjggpWR6/view?usp=sharing" target="_blank">here</a>
-
-```{r}
 hr()
-selectInput(inputId = 'test0', 
-            label = 'Choose a test',
-            choices = c('Paired: t-test', 'Paired: Wilcoxon signed-rank test',
-                        'Unpaired: t-test', 'Unpaired: Mann-Whitney U test'))
 
-checkboxInput(inputId = 'type0', 
-              label = 'File is in CSV format.', 
-              value = TRUE)
+# File format
+radioButtons(inputId = 'type0', 
+             label = 'File type', 
+             choices = c('CSV (default)' = 'csv',
+                         'XLSX or XLS' = 'excel'),
+             selected = 'csv')
 
-checkboxInput(inputId = 'header0', 
-              label = 'First row is a heading.', 
-              value = TRUE)
-
+# Upload file
 fileInput(inputId = 'file0', 
-          label = 'Upload the file',
+          label = 'Import data',
           multiple = FALSE,
-          accept = c('.csv', '.xls', '.xlsx'))
-```
+          accept = c('.csv', '.xlsx', '.xls'))
 
-Row
-------------------------------------
-
-### Glimpse at the uploaded data
-
-```{r}
+# Make reactive data
 df <- reactive({
     req(input$file0)
     
-    if(input$type0 == TRUE & input$header0 == TRUE) {
-        read_csv(input$file0$datapath,
-                 col_names = input$header0) %>% 
-        clean_names()
-      
-    } else if(input$type0 == TRUE & input$header0 == FALSE){
-        read_csv(input$file0$datapath,
-                 col_names = input$header0) %>% 
-        setNames(nm = c('X1', 'X2'))
-      
-    } else if(input$type0 == FALSE & input$header0 == TRUE) {
-        read_excel(input$file0$datapath,
-                   col_names = input$header0) %>% 
-        clean_names()
-      
-    } else {
-        read_excel(input$file0$datapath,
-                   col_names = input$header0) %>% 
-        setNames(nm = c('X1', 'X2'))
+    if(input$type0 == 'csv'){
+        
+        read_csv(input$file0$datapath) %>% 
+            clean_names()
+        
+    } else if(input$type0 != 'csv'){
+        
+        read_excel(input$file0$datapath) %>% 
+            clean_names()
+        
     }
 })
 
-renderPrint({
-    df()
+# Choose numeric columns
+output$data_numeric <- renderUI({
+    varSelectizeInput(inputId = 'numeric',
+                      label = 'Select numeric variables',
+                      multiple = TRUE,
+                      data = df())
 })
+
+uiOutput('data_numeric')
+
+# Choose categorical columns
+output$data_categorical <- renderUI({
+    varSelectizeInput(inputId = 'categorical',
+                      label = 'Select categorical variables',
+                      multiple = TRUE,
+                      data = df())
+})
+
+uiOutput('data_categorical')
+
 ```
 
-### Tabular summary
+Row 
+-------------------------------------
 
-```{r}
-renderPrint({
-    skim(df())
+### Table 1: Summary of numeric variables
+
+```{r upload_2}
+df_numeric <- reactive({
+    req(df())
+    df() %>% 
+        select(!!!input$numeric) %>% 
+        mutate(across(.cols = everything(), ~ as.numeric(.x)))
 })
-``` 
 
-Row
--------------------------------------  
+output$tbl_numeric <- renderTable(
+    if(ncol(df_numeric()) != 0){
+        df_numeric() %>% 
+            my_skim() %>% 
+            yank('numeric') %>% 
+            rename(Variable = skim_variable)
+    }
+)
 
-### Box-and-whisker plot
+tableOutput('tbl_numeric')
+```
 
-```{r}
-renderPlot({
-    gathered <- df() %>% 
-        gather(key = key,
-               value = value)
-    
-    ggplot(data = gathered) +
-        aes(x = key,
-            y = value) +
-    geom_point(position = position_jitter(width = 0.3)) +
-    geom_boxplot(alpha = 0.5) +
-    stat_summary(fun.y = 'mean', 
-                 geom = 'point',
-                 shape = 8,
-                 stroke = 1,
-                 size = 4) +
-    scale_y_continuous(name = 'Value') +
-    theme_bw(base_size = 18) +
-    theme(axis.title.x = element_blank())
+### Table 2: Summary of categorical variables
+
+```{r upload_3}
+df_categorical <- reactive({
+    req(df())
+    df() %>% 
+        select(!!!input$categorical) %>% 
+        mutate(across(.cols = everything(), ~ as.factor(.x)))
+})
+
+output$tbl_categorical <- renderTable(
+    if(ncol(df_categorical()) != 0){
+        df_categorical() %>% 
+            my_skim() %>% 
+            yank('factor') %>% 
+            rename(Variable = skim_variable,
+                   `Unique levels` = n_unique)
+    }
+)
+
+tableOutput('tbl_categorical')
+```
+
+```{r upload_4}
+# Generate combined data file
+df_combined <- reactive({
+    bind_cols(df_numeric(), df_categorical())
     })
 ```
 
-### Test summary
-
-```{r}
-renderPrint({
-    gathered <- df() %>% 
-        gather(key = key,
-               value = value)
-    
-    gathered_paired <- df() %>% 
-        filter(complete.cases(.)) %>% 
-        gather(key = key,
-               value = value)
-    
-    if(input$test0 == 'Paired: t-test') {
-        t.test(value ~ key,
-               data = gathered_paired,
-               paired = TRUE)
-        
-    } else if(input$test0 == 'Unpaired: t-test') {
-        t.test(value ~ key,
-               data = gathered,
-               na.rm = TRUE,
-               paired = FALSE)
-        
-    } else if(input$test0 == 'Paired: Wilcoxon signed-rank test') {
-        wilcox.test(value ~ key, 
-                    data = gathered_paired,
-                    exact = FALSE,
-                    paired = TRUE,
-                    confint = TRUE)
-        
-    } else {
-        wilcox.test(value ~ key,
-                    data = gathered,
-                    na.rm = TRUE,
-                    exact = FALSE,
-                    paired = FALSE,
-                    confint = TRUE)
-    }
-})
-```
-
-Compare $\geq$ 3 groups {data-navmenu='Select a test'}
+Continuous y ~ Categorical x {data-navmenu='Analysis'}
 =====================================  
 
 Inputs {.sidebar data-width=350}
 -------------------------------------
 
-#### Analysis of Variance
-
-##### PROCEDURE
-1. Select a hypothesis test (default value: ANOVA).  
-2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV).  
-3. Select whether the first row of the uploaded file includes column headings (default value: true).  
-4. Select your data file and upload it.  
-
-##### NOTE 
-- Results will be generated automatically, and the output updated if you change the selected test.  
-- Upload continuous or discrete numeric data only. No count or frequency data.  
-- The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
-- The first column for repeated measures designs (RM-ANOVA and Friedman test) is assumed to be the column that contains the grouping variable (e.g., subject ID).  
-- Missing data pairs will be removed for repreated measures designs. 
-- See examples of the data structure <a href="https://drive.google.com/file/d/1u1Km0zyTz4Ld385En6zNLUIZPYUf_oMF/view?usp=sharing" target="_blank">here</a>
-
 ```{r}
+h1('Continuous y ~ Categorical x')
+
+p(strong('Remember to upload your data first.'))
+
 hr()
-selectInput(inputId = 'test1', 
-            label = 'Choose a test',
-            choices = c("ANOVA", "Repeated-measures ANOVA",
-                        "Kruskal-Wallis test", "Friedman test"))
 
-checkboxInput(inputId = 'type1', 
-              label = 'File is in CSV format.', 
-              value = TRUE)
+# Select variables
+## Response variable
+output$yvar <- renderUI({
+    req(df_numeric())
+    varSelectInput(inputId = 'y_var',
+                   label = 'Choose response (y) variable',
+                   selected = NULL,
+                   data = df_numeric())
+    })
 
-checkboxInput(inputId = 'header1', 
-              label = 'First row is a heading.', 
-              value = TRUE)
+uiOutput('yvar')
 
-fileInput(inputId = 'file1', 
-          label = 'Upload the file',
-          multiple = FALSE,
-          accept = c('.csv', '.xls', '.xlsx'))
-```
+## Grouping variable
+output$groupvar <- renderUI({
+    req(df_categorical())
+    varSelectInput(inputId = 'group_var',
+                   label = 'Choose grouping (x) variable',
+                   selected = NULL,
+                   data = df_categorical())
+    })
 
-Row
-------------------------------------
+uiOutput('groupvar')
 
-### Glimpse at the uploaded data
-
-```{r}
-aov_data <- reactive({
-    req(input$file1)
-    
-    if(input$type1 == TRUE & input$header1 == TRUE) {
-        read_csv(input$file1$datapath,
-                 col_names = input$header1) %>% 
-        clean_names()
-      
-    } else if(input$type1 == TRUE & input$header1 == FALSE){
-        n <- dim(input$file1)[2]
-        read_csv(input$file1$datapath,
-                 col_names = input$header1) %>% 
-        setNames(nm = LETTERS[1:n])
-      
-    } else if(input$type1 == FALSE & input$header1 == TRUE) {
-        read_excel(input$file1$datapath,
-                   col_names = input$header1) %>% 
-        clean_names()
-      
-    } else {
-        n <- dim(input$file1)[2]
-        read_excel(input$file1$datapath,
-                   col_names = input$header1) %>% 
-        setNames(nm = LETTERS[1:n])
-    }
-})
-
-renderPrint({
-    aov_data()
-})
-```
-
-### Tabular summary
-
-```{r}
-renderPrint({
-    if(input$test1 == 'ANOVA' | input$test1 == 'Kruskal-Wallis test'){
-        skim(aov_data())
-    } else {
-        nam_id <- as.name(names(aov_data()[1]))
-        
-        aov_data() %>% 
-            mutate(ID = as.character(!!nam_id)) %>% 
-            skim()
-    }
-})
-``` 
-
-Row
--------------------------------------  
-
-### Box-and-whisker plot
-
-```{r}
-renderPlot({
-    if(input$test1 == 'ANOVA' | input$test1 == 'Kruskal-Wallis test') {
-        gathered <- aov_data() %>% 
-            gather(key = group,
-                   value = value)
-        
-        ggplot(data = gathered) +
-            aes(x = group,
-                y = value) +
-            geom_point(position = position_jitter(width = 0.3)) +
-            geom_boxplot(alpha = 0.5) +
-            stat_summary(fun.y = 'mean', 
-                         geom = 'point',
-                         shape = 8,
-                         stroke = 1,
-                         size = 4) +
-            scale_y_continuous(name = 'Value') +
-            theme_bw(base_size = 18) +
-            theme(axis.title.x = element_blank())
-    } else {
-        nam_id <- as.name(names(aov_data()[1]))
-        
-        fig_rep <- aov_data() %>% 
-            gather(key = group,
-                   value = value,
-                   - !!nam_id)
-        
-        ggplot(data = fig_rep) +
-            aes(x = group,
-                y = value) +
-            geom_point(position = position_jitter(width = 0.3)) +
-            geom_boxplot(alpha = 0.5) +
-            stat_summary(fun.y = 'mean', 
-                         geom = 'point',
-                         shape = 8,
-                         stroke = 1,
-                         size = 4) +
-            scale_y_continuous(name = 'Value') +
-            theme_bw(base_size = 18) +
-            theme(axis.title.x = element_blank())
-    }
-    
-})
-```
-
-### ANOVA summary
-
-```{r}
-renderPrint({
-    unpaired <- aov_data() %>% 
-        gather(key = group,
-               value = value)
-    
-    nam_id <- as.name(names(aov_data()[1]))
-    
-    paired <- aov_data() %>% 
-        filter(complete.cases(.)) %>%
-        gather(key = group,
-               value = value,
-               -!!nam_id) %>% 
-        rename(ID = !!nam_id) %>% 
-        mutate(ID = as.character(ID))
-    
-    if(input$test1 == 'ANOVA') {
-        Anova(lm(value ~ group,
-                 data = unpaired),
-              test.statistic = 'F')
-        
-    } else if(input$test1 == 'Kruskal-Wallis test') {
-        kruskal.test(value ~ factor(group),
-                     data = unpaired)
-        
-    } else if(input$test1 == 'Repeated-measures ANOVA') {
-        Anova(lmer(value ~ group + (1 | ID), 
-                   data = paired),
-              test.statistic = 'F')
-    } else {
-        friedman.test(value ~ group | ID, 
-                      data = paired)
-    }
-})
-```
-
-Correlation {data-navmenu='Select a test'}
-=====================================  
-    
-Inputs {.sidebar data-width=350}
--------------------------------------
-
-#### Correlation
-
-##### PROCEDURE
-1. Select the type of correlation (default value: Pearson's correlation). 
-2. Select whether you want a trend line included on the scatterplot (default value: true).
-3. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV). 
-4. Select whether the first row of the uploaded file includes column headings (default value: true).  
-5. Select your data file and upload it. 
-
-##### NOTE 
-- Results will be generated automatically, and the output updated if you change the selected test.  
-- Upload continuous or discrete numeric data only. No count or frequency data.  
-- The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
-- Missing data pairs will be removed.  
-- See examples of the data structure  <a href="https://drive.google.com/file/d/1-_7rD0M29lnRzzmFFvKeHJqGBcq9_FNG/view?usp=sharing" target="_blank">here</a>
-
-```{r}
 hr()
-selectInput(inputId = 'test2', 
-            label = 'Choose a test',
-            choices = c("Pearson's correlation", "Spearman's correlation"))
 
-checkboxInput(inputId = 'trend_line2', 
-              label = 'Draw a trend line.', 
-              value = TRUE)
-
-checkboxInput(inputId = 'type2', 
-              label = 'File is in CSV format.', 
-              value = TRUE)
-
-checkboxInput(inputId = 'header2', 
-              label = 'First row is a heading.', 
-              value = TRUE)
-
-fileInput(inputId = 'file2', 
-          label = 'Upload the file',
-          multiple = FALSE,
-          accept = c('.csv', '.xls', '.xlsx'))
-```
-
-Row
-------------------------------------
-
-### Glimpse at the uploaded data
-
-```{r}
-cor_data <- reactive({
-    req(input$file2)
-    
-    if(input$type2 == TRUE & input$header2 == TRUE) {
-        read_csv(input$file2$datapath,
-                 col_names = input$header2) %>% 
-        clean_names()
-      
-    } else if(input$type2 == TRUE & input$header2 == FALSE){
-        read_csv(input$file2$datapath,
-                 col_names = input$header2) %>% 
-        setNames(nm = c('X', 'Y'))
-      
-    } else if(input$type2 == FALSE & input$header2 == TRUE) {
-        read_excel(input$file2$datapath,
-                   col_names = input$header2) %>% 
-        clean_names()
-      
-    } else {
-        read_excel(input$file2$datapath,
-                   col_names = input$header2) %>% 
-        setNames(nm = c('X', 'Y'))
-    }
-})
-
-renderPrint({
-    cor_data()
-})
-```
-
-### Tabular summary
-
-```{r}
-renderPrint({
-    skim(cor_data())
-})
-``` 
-
-Row
--------------------------------------  
-
-### Scatterplot
-
-```{r}
-renderPlot({
-    if(input$trend_line2 == TRUE) {
-        ggplot(data = cor_data()) +
-            aes_string(x = colnames(cor_data())[1],
-                       y = colnames(cor_data())[2]) +
-            geom_point(shape = 21,
-                       size = 4,
-                       stroke = 0.8,
-                       fill = '#FFFFFF',
-                       alpha = 0.5) +
-            geom_smooth(method = 'loess',
-                        se = FALSE) +
-            theme_bw(base_size = 18)
-    
-    } else {
-        ggplot(data = cor_data()) +
-            aes_string(x = colnames(cor_data())[1],
-                       y = colnames(cor_data())[2]) +
-            geom_point(shape = 21,
-                       size = 4,
-                       stroke = 0.8,
-                       fill = '#FFFFFF',
-                       alpha = 0.5) +
-            theme_bw(base_size = 18)
-    }
-})
-```
-
-### Correlation summary
-
-```{r}
-renderPrint({
-    
-    corr <- cor_data() %>% 
-        filter(complete.cases(.)) %>% 
-        set_names(c('column_1.x', 'column_2.y'))
-    
-    if(input$test2 == "Pearson's correlation") {
-        with(corr, cor.test(x = column_1.x, 
-                            y = column_2.y, 
-                            method = 'pearson'))
-    } else {
-        with(corr, cor.test(x = column_1.x, 
-                            y = column_2.y, 
-                            method = 'spearman',
-                            exact = TRUE))
-    }
-})
-```
-
-Linear regression {data-navmenu='Select a test'}
-=====================================  
-    
-Inputs {.sidebar data-width=350}
--------------------------------------
-
-#### Linear regression 
-
-##### PROCEDURE
-1. Select whether you want to plot 95% confidence intervals for the regression line (default value: true). 
-2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV). 
-3. Select whether the first row of the uploaded file includes column headings (default value: true).  
-4. Select your data file and upload it. 
-
-##### NOTE 
-- Ordinary least squares regression (OLS) only.  
-- Results will be generated automatically, and the output updated if you change the selected test.  
-- Upload continuous or discrete numeric data only. No count or frequency data.  
-- The uploaded file must be a CSV/XLS/XLSX file consisting of two columns.  
-- The first column is assumed to be the dependent variable (_y_).  
-- Missing data pairs will be removed.  
-- See examples of the data structure  <a href="https://drive.google.com/file/d/1ADvtOlIND9d_YTFBgN_0jPQpKiubSwfD/view?usp=sharing" target="_blank">here</a> 
+p(strong('Independent measures design'))
 
 
-```{r}
 hr()
-checkboxInput(inputId = 'confint3', 
-              label = 'Plot 95% confidence interval.', 
-              value = TRUE)
 
-checkboxInput(inputId = 'type3', 
-              label = 'File is in CSV format.', 
-              value = TRUE)
+p(strong('Repeated measures design'))
 
-checkboxInput(inputId = 'header3', 
-              label = 'First row is a heading.', 
-              value = TRUE)
+# Select unique identifier variable
+output$idvar <- renderUI({
+    req(df_numeric())
+    varSelectInput(inputId = 'id_var',
+                   label = 'Choose identifier variable',
+                   selected = NULL,
+                   data = df_combined())
+    })
 
-fileInput(inputId = 'file3', 
-          label = 'Upload the file',
-          multiple = FALSE,
-          accept = c('.csv', '.xls', '.xlsx'))
-```
-
-Row
-------------------------------------
-
-### Glimpse at the uploaded data
-
-```{r}
-lm_data <- reactive({
-    req(input$file3)
-  
-    if(input$type3 == TRUE & input$header3 == TRUE) {
-        read_csv(input$file3$datapath,
-                 col_names = input$header3) %>% 
-        clean_names()
-      
-    } else if(input$type3 == TRUE & input$header3 == FALSE){
-        read_csv(input$file3$datapath,
-                 col_names = input$header3) %>% 
-        setNames(nm = c('X', 'Y'))
-      
-    } else if(input$type3 == FALSE & input$header3 == TRUE) {
-        read_excel(input$file3$datapath,
-                   col_names = input$header3) %>% 
-        clean_names()
-      
-    } else {
-        read_excel(input$file3$datapath,
-                   col_names = input$header3) %>% 
-        setNames(nm = c('X', 'Y'))
-    }
-})
-
-renderPrint({
-    lm_data()
-})
-```
-
-### Tabular summary
-
-```{r}
-renderPrint({
-    skim(lm_data())
-})
-``` 
-
-Row
--------------------------------------  
-
-### Scatterplot
-
-```{r}
-renderPlot({
-    if(input$confint3 == TRUE) {
-        ggplot(data = lm_data()) +
-            aes_string(x = colnames(lm_data())[2],
-                       y = colnames(lm_data())[1]) +
-            geom_point(shape = 21,
-                       size = 4,
-                       stroke = 0.8,
-                       fill = '#FFFFFF',
-                       alpha = 0.5) +
-            geom_smooth(method = 'lm') +
-            theme_bw(base_size = 18)
-    
-    } else {
-        ggplot(data = lm_data()) +
-            aes_string(x = colnames(lm_data())[2],
-                       y = colnames(lm_data())[1]) +
-            geom_point(shape = 21,
-                       size = 4,
-                       stroke = 0.8,
-                       fill = '#FFFFFF',
-                       alpha = 0.5) +
-             geom_smooth(method = 'lm',
-                         se = FALSE) +
-            theme_bw(base_size = 18)
-    }
-})
-```
-
-### Regression summary
-
-```{r}
-renderPrint({
-    ols <- lm_data() %>% 
-        filter(complete.cases(.)) %>% 
-        set_names(c('column_1.x', 'column_2.y'))
-    
-    summary(lm(column_2.y ~ column_1.x, data = ols))
-})
-```
-
-Contingency tables {data-navmenu='Select a test'}
-=====================================  
-    
-Inputs {.sidebar data-width=350}
--------------------------------------
-
-#### Contingency tables
-
-##### PROCEDURE
-1. Select whether you are entering raw data or summarised counts (default value: raw data). 
-2. Select whether the uploaded file is in comma-separated values (CSV) format or an MS Excel (XLS or XLSX) format (default value: CSV). 
-3. Select whether the first row of the uploaded file includes column headings (default value: true).  
-4. Select your data file and upload it. 
-
-##### NOTE 
-- Results will be generated automatically, and the output updated if you change the selected test.  
-- Upload count data only.  
-- If uploading raw data, the file must be a CSV/XLS/XLSX file consisting of two columns, with the data entered in long format.  
-- If uploading summarised data, the file must be a CSV/XLS/XLSX file consisting of three columns (two grouping columns and a count column).
-- Missing data pairs will be removed.  
-- See examples of the data structure  <a href="https://drive.google.com/file/d/1HrvFwDZx0BAJmMWgcrKNoMUoyH64P3SW/view?usp=sharing" target="_blank">here</a>
-
-```{r}
-hr()
-selectInput(inputId = 'test4', 
-            label = 'Choose a test',
-            choices = c("Chi-squared", "Fisher's Exact", 
-                        "Mcnemar's"))
-
-selectInput(inputId = 'data_format4', 
-            label = 'Choose the data format',
-            choices = c("Raw data", "Summarised counts"))
-
-checkboxInput(inputId = 'type4', 
-              label = 'File is in CSV format.', 
-              value = TRUE)
-
-checkboxInput(inputId = 'header4', 
-              label = 'First row is a heading.', 
-              value = TRUE)
-
-fileInput(inputId = 'file4', 
-          label = 'Upload the file',
-          multiple = FALSE,
-          accept = c('.csv', '.xls', '.xlsx'))
-```
-
-Column
-------------------------------------
-
-### Mosaic plot
-
-```{r}
-conti_data <- reactive({
-    req(input$file4)
-    
-    if(input$type4 == TRUE) {
-        read_csv(input$file4$datapath,
-                 col_names = input$header3)
-    } else {
-        read_excel(input$file4$datapath,
-                   col_names = input$header3)
-    }
-})
-
-renderPlot({
-    if(input$data_format4 == 'Raw data') {
-        par(cex = 2)
-        mosaicplot(table(conti_data()),
-                   main = 'Mosaic plot of uploaded data',
-                   color = TRUE,
-                   cex.axis = 0.75)
-    } else {
-        nam <- as.name(names(conti_data())[[3]])
-        
-        tab4 <- conti_data() %>% 
-            uncount(!!nam)
-        
-        par(cex = 2)
-        
-        mosaicplot(table(tab4),
-                   main = 'Mosaic plot of uploaded data',
-                   color = TRUE,
-                   cex.axis = 0.75)
-    }
-})
-```
-
-Column
-------------------------------------
-
-### Tabulated data and test results
-
-```{r}
-renderPrint({
-if(input$test4 == 'Chi-squared') {
-    if(input$data_format4 == 'Raw data') {
-        CrossTable(x = conti_data()[[1]], 
-                   y = conti_data()[[2]],
-                   prop.chisq = FALSE,
-                   chi = TRUE,
-                   dnn = c('Column 1', 'Column 2'),
-                   format = 'SPSS')
-    } else {
-        nam <- as.name(names(conti_data())[[3]])
-        
-        tab4 <- conti_data() %>% 
-            uncount(!!nam)
-        
-        CrossTable(x = tab4[[1]], 
-                   y = tab4[[2]],
-                   prop.chisq = FALSE,
-                   chi = TRUE,
-                   dnn = c('Column 1', 'Column 2'),
-                   format = 'SPSS')
-        }
-    } else if(input$test4 == "Fisher's Exact") {
-    if(input$data_format4 == 'Raw data') {
-        CrossTable(x = conti_data()[[1]], 
-                   y = conti_data()[[2]],
-                   prop.chisq = FALSE,
-                   fisher = TRUE,
-                   dnn = c('Column 1', 'Column 2'),
-                   format = 'SPSS')
-    } else {
-        tab4 <- conti_data() %>% 
-            uncount(count)
-        
-        CrossTable(x = tab4[[1]], 
-                   y = tab4[[2]],
-                   prop.chisq = FALSE,
-                   fisher = TRUE,
-                   dnn = c('Column 1', 'Column 2'),
-                   format = 'SPSS')
-        }
-    } else {
-    if(input$data_format4 == 'Raw data') {
-        CrossTable(x = conti_data()[[1]], 
-                   y = conti_data()[[2]],
-                   prop.chisq = FALSE,
-                   mcnemar = TRUE,
-                   dnn = c('Column 1', 'Column 2'),
-                   format = 'SPSS')
-    } else {
-        tab4 <- conti_data() %>% 
-            uncount(count)
-        
-        CrossTable(x = tab4[[1]], 
-                   y = tab4[[2]],
-                   prop.chisq = FALSE,
-                   mcnemar = TRUE,
-                   dnn = c('Column 1', 'Column 2'),
-                   format = 'SPSS')
-        }
-    }
-})
+uiOutput('idvar')
 ```
