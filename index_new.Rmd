@@ -2,6 +2,7 @@
 title: "statr"
 output: 
   flexdashboard::flex_dashboard:
+    vertical_layout: scroll
     navbar:
     social: ['menu']
     source_code: 'https://github.com/kamermanpr/painblogr-statr.git'
@@ -17,9 +18,12 @@ library(readxl)
 library(readr)
 #library(lme4)
 library(skimr)
-#library(car)
+library(car)
 #library(gmodels)
 library(janitor)
+library(rstatix)
+library(boot)
+library(kableExtra)
 
 # skimr variables
 my_skim <- skim_with(base = sfl(Missing = n_missing,
@@ -71,6 +75,16 @@ penguins %>%
     select(-year) %>% 
     select(species, everything()) %>% 
     write_csv(file = 'data/penguins_sample.csv')
+
+### Sleep study
+sleepstudy %>% 
+    write_csv(file = 'data/sleepstudy_original.csv')
+
+### Sleep
+#### Modified to one group only
+sleep %>% 
+    filter(group == 1) %>% 
+    write_csv(file = 'data/sleep_modified.csv')
 ```
 
 Welcome {data-nav='Welcome'}
@@ -261,7 +275,7 @@ df_categorical <- reactive({
     req(df())
     df() %>% 
         select(!!!input$categorical) %>% 
-        mutate(across(.cols = everything(), ~ as.factor(.x)))
+        mutate(across(.cols = everything(), ~ factor(.x)))
 })
 
 output$tbl_categorical <- renderTable(
@@ -290,7 +304,7 @@ Continuous y ~ Categorical x {data-navmenu='Analysis'}
 Inputs {.sidebar data-width=350}
 -------------------------------------
 
-```{r}
+```{r continuous_v_categorical_1}
 h1('Continuous y ~ Categorical x')
 
 p(strong('Remember to upload your data first.'))
@@ -302,7 +316,7 @@ hr()
 output$yvar <- renderUI({
     req(df_numeric())
     varSelectInput(inputId = 'y_var',
-                   label = 'Choose response (y) variable',
+                   label = 'Choose continuous response (y) variable',
                    selected = NULL,
                    data = df_numeric())
     })
@@ -313,30 +327,212 @@ uiOutput('yvar')
 output$groupvar <- renderUI({
     req(df_categorical())
     varSelectInput(inputId = 'group_var',
-                   label = 'Choose grouping (x) variable',
+                   label = 'Choose categorical grouping (x) variable (in the case of one-sample tests, the variable will have one level ony)',
                    selected = NULL,
                    data = df_categorical())
     })
 
 uiOutput('groupvar')
 
-hr()
+# Set mu level for one-sample tests
+output$muvalue <- renderUI({
+    req(df_combined())
+    numericInput(inputId = 'mu_value',
+                 label = 'Choose the true value of the mean/location shift for one-sample tests',
+                 value = 0)
+})
 
-p(strong('Independent measures design'))
-
-
-hr()
-
-p(strong('Repeated measures design'))
+uiOutput('muvalue')
 
 # Select unique identifier variable
 output$idvar <- renderUI({
-    req(df_numeric())
-    varSelectInput(inputId = 'id_var',
-                   label = 'Choose identifier variable',
-                   selected = NULL,
-                   data = df_combined())
+    req(df_categorical())
+    selectInput(inputId = 'id_var',
+                label = 'Optional: Choose repeated measures identifier (e.g., participant ID)',
+                selected = 'None',
+                choices = c('None', names(df_categorical())))
     })
 
 uiOutput('idvar')
+
+# Select test type
+output$testtype <- renderUI({
+    req(df_analysis)
+    selectInput(inputId = 'test_type',
+                label = 'Choose test type',
+                selected = 'parametric',
+                choices = c('Parametric' = 'parametric',
+                            'Distribution free (non-parametric)' = 'nonparametric'))
+    })
+
+uiOutput('testtype')
+
+# Select whether to calculate effect size
+checkboxInput(inputId = 'effect_size',
+              label = 'Calculate effect size (Note: bootstrapped confidence intervals, so calculation can take a while to perform...be patient)',
+              value = FALSE)
+ 
+# Select whether to perform pairwise tests 
+checkboxInput(inputId = 'pairwise_tests',
+              label = 'Perform pairwise tests (Only relevent when the grouping variable has more the two levels)',
+              value = FALSE)
+```
+
+```{r continuous_v_categorical_2}
+df_analysis <- reactive({
+    req(input$group_var)
+    req(input$y_var)
+    req(input$id_var)
+    
+    if(input$id_var == 'None'){
+        
+        df_combined() %>% 
+            select(!!!input$y_var, !!!input$group_var) %>% 
+            setNames(nm = c('y_variable', 'x_variable'))
+        
+    } else {
+        
+        df_combined() %>% 
+            select(!!!input$id_var, !!!input$y_var, !!!input$group_var) %>% 
+            setNames(nm = c('ID', 'y_variable', 'x_variable'))
+        
+    }
+})
+```
+
+Column
+-------------------------------------
+
+### Table 1: Summary of the continuous (y) variable stratified by the grouping (x) variable
+
+```{r continuous_v_categorical_3}
+output$tbl_stratified <- renderTable(
+    if(ncol(df_analysis()) != 0){
+        df_analysis() %>% 
+            group_by(x_variable) %>% 
+            my_skim() %>% 
+            yank('numeric') %>% 
+            select(-skim_variable) %>% 
+            rename(Group = x_variable)
+    }
+)
+
+tableOutput('tbl_stratified')
+```
+
+### Chart 1: Summary of the continuous (y) variable stratified by the grouping (x) variable
+
+```{r continuous_v_categorical_4}
+output$boxplot <- renderPlot(
+    
+    if(ncol(df_analysis()) != 0){
+        with(df_analysis(), boxplot(y_variable ~ x_variable,
+                                    na.rm = TRUE,
+                                    xlab = NULL,
+                                    ylab = 'Y variable'))
+        abline(h = input$mu_value, 
+               col = 'red')
+    }
+)
+    
+plotOutput('boxplot')
+```
+
+### Outcome: Null hypothesis significance test
+
+```{r continuous_v_categorical_5}
+output$test1 <- renderTable(
+    
+    if(req(input$id_var) == 'None'){
+        
+        if(length(levels(df_analysis()$x_variable)) == 1){
+            
+            if(input$test_type == 'parametric'){
+                
+                t_test(y_variable ~ 1,
+                       data = df_analysis(),
+                       mu = input$mu_value) %>% 
+                    mutate(test = 't-test (one-sample)',
+                           `true mean` = input$mu_value) %>% 
+                    select(test, `true mean`, statistic, df, p) %>% 
+                    mutate(p = round(p, 5)) %>% 
+                    setNames(nm = c('Test', 'True mean', 'Statistic (t)', 'DF', 'p-value'))
+                
+            } else if(input$test_type == 'nonparametric'){
+                
+                wilcox_test(y_variable ~ 1, 
+                            data = df_analysis(),
+                            mu = input$mu_value)
+            
+            }
+        
+        } else if(length(levels(df_analysis()$x_variable)) == 2){
+            
+            if(input$test_type == 'parametric'){
+            
+                df_analysis() %>% 
+                    t_test(y_variable ~ x_variable,
+                           detailed = TRUE) %>% 
+                    select(method, alternative, group1, group2, estimate1, 
+                           estimate2, estimate, conf.low, conf.high, 
+                           statistic, df, p) %>% 
+                    mutate(p = round(p, 5),
+                           method = tolower(method),
+                           alternative = 'two-sided') %>% 
+                    setNames(nm = c('Test', 'Alternative', 'Group 1', 'Group 2', 
+                                    'Group 1: mean', 'Group 2: mean', 'Delta means', 
+                                    'Delta means 95% CI lower limit',
+                                    'Delta means 95% CI upper limit',
+                                    'Statistic (t)', 'DF', 'p-value'))
+            
+            } else if(input$test_type == 'nonparametric'){
+                
+                df_analysis() %>% 
+                    wilcox_test(y_variable ~ x_variables) %>% 
+                    mutate(test = 'Mann-Whitney U test (with continuity correction) (two-sample)') %>% 
+                    select(test, group1, group2, statistic, p) %>% 
+                    mutate(p = round(p, 5)) %>% 
+                    setNames(nm = c('Test', 'Group 1', 'Group 2', 'Statistic (W)', 'p-value'))
+                
+            }
+            
+        } else if(length(levels(df_analysis()$x_variable)) > 2){
+            
+            if(input$test_type == 'parametric'){
+            
+                df_analysis() %>% 
+                    anova_test(y_variable ~ x_variable, 
+                               type = 2) 
+            
+            } else if(input$test_type == 'nonparametric'){
+                
+                df_analysis() %>% 
+                    kruskal_test(y_variable ~ x_variable) 
+                
+            }
+        }
+        
+    } else if(req(input$id_var) != 'None') {
+        
+        
+        
+    }
+)
+
+tableOutput('test1')
+```
+
+### Effect size
+
+```{r continuous_v_categorical_6}
+
+
+```
+
+### Pairwise tests
+
+```{r continuous_v_categorical}
+
+
+
 ```
