@@ -14,16 +14,15 @@ library(flexdashboard)
 library(shiny)
 library(dplyr)
 library(tidyr)
+library(tibble)
 library(readxl)
 library(readr)
-#library(lme4)
 library(skimr)
 library(car)
 #library(gmodels)
 library(janitor)
 library(rstatix)
 library(boot)
-library(xtable)
 
 # skimr variables
 my_skim <- skim_with(base = sfl(Missing = n_missing,
@@ -449,8 +448,7 @@ output$test1 <- renderTable(
             
             if(input$test_type == 'parametric'){
                 
-                one_ttest <- 
-                    df_analysis() %>% 
+                df_analysis() %>% 
                     t_test(y_variable ~ 1,
                            mu = input$mu_value,
                            detailed = TRUE) %>% 
@@ -465,12 +463,10 @@ output$test1 <- renderTable(
                                     '95% CI upper limit',
                                     'Statistic', 'DF', 'p-value'))
                 
-                one_ttest
                 
             } else if(input$test_type == 'nonparametric'){
                 
-                one_wilcox <- 
-                    df_analysis() %>% 
+                df_analysis() %>% 
                     wilcox_test(y_variable ~ 1, 
                                 mu = input$mu_value,
                                 detailed = TRUE) %>% 
@@ -478,15 +474,13 @@ output$test1 <- renderTable(
                            conf.low, conf.high, 
                            statistic, p) %>% 
                     mutate(p = round(p, 5),
-                           method = 'One-sample Wilcoxon rank sum test',
+                           method = 'One-sample Wilcoxon rank-sum test',
                            alternative = 'Two-sided',
                            group2 = input$mu_value) %>% 
                     setNames(nm = c('Test', 'Alternative', 'Null value', 
                                     'Group 1: pseudomedian', 
                                     '95% CI lower limit', '95% CI upper limit',
                                     'Statistic', 'p-value'))
-                
-                one_wilcox
                     
             }
         
@@ -494,8 +488,7 @@ output$test1 <- renderTable(
             
             if(input$test_type == 'parametric'){
             
-                two_ttest <- 
-                    df_analysis() %>% 
+                df_analysis() %>% 
                     t_test(y_variable ~ x_variable,
                            detailed = TRUE) %>% 
                     select(method, alternative, group1, group2, estimate1, 
@@ -510,28 +503,23 @@ output$test1 <- renderTable(
                                     'Delta means 95% CI lower limit',
                                     'Delta means 95% CI upper limit',
                                     'Statistic', 'DF', 'p-value'))
-                
-                two_ttest
             
             } else if(input$test_type == 'nonparametric'){
                 
-                two_wilcox <- 
-                    df_analysis() %>% 
-                    wilcox_test(y_variable ~ x_variables,
+                df_analysis() %>% 
+                    wilcox_test(y_variable ~ x_variable,
                                 detailed = TRUE) %>% 
                     select(method, alternative, group1, group2, 
                            estimate, conf.low, conf.high, 
                            statistic, p) %>% 
                     mutate(p = round(p, 5),
-                           method = 'Two-sample Wilcoxon rank sum test',
+                           method = 'Two-sample Wilcoxon rank-sum test',
                            alternative = 'Two-sided') %>%
                     setNames(nm = c('Test', 'Alternative', 'Group 1', 
                                     'Group 2', 'Difference in location', 
                                     '95% CI lower limit',
                                     '95% CI upper limit',
                                     'Statistic', 'p-value'))
-                
-                two_wilcox
                 
             }
             
@@ -545,33 +533,99 @@ output$test1 <- renderTable(
                                type = 2,
                                detailed = TRUE)
                 
-                oneway_anova_df <- data.frame(Method = 'one-way ANOVA (Type II sum of squares)',
-                                              SSn = oneway_anova$SSn,
-                                              SSd = oneway_anova$SSd,
-                                              DFn = oneway_anova$DFn,
-                                              DFd = oneway_anova$DFd,
-                                              Statistic = oneway_anova$`F`,
-                                              `p-value` = round(oneway_anova$p, 5))
-                
-                oneway_anova_df
+                tibble(Method = 'One-way ANOVA (Type II sum of squares)',
+                       DFn = oneway_anova$DFn,
+                       DFd = oneway_anova$DFd,
+                       Statistic = oneway_anova$`F`,
+                       `p-value` = round(oneway_anova$p, 5))
             
             } else if(input$test_type == 'nonparametric'){
                 
-                kruskal <- df_analysis() %>% 
+                df_analysis() %>% 
                     kruskal_test(as.numeric(y_variable) ~ factor(x_variable)) %>% 
                     select(method, statistic, df, p) %>%
                     mutate(method = 'Kruskal-Wallis test',
                            p = round(p, 5)) %>% 
                     setNames(nm = c('Method', 'Statistic', 'DF', 'p-value'))
-                    
-                kruskal
+                
             }
         }
         
     } else if(req(input$id_var) != 'None') {
         
-        
-        
+        if(length(levels(df_analysis()$x_variable)) == 2){
+            
+            if(input$test_type == 'parametric'){
+            
+                df_analysis() %>% 
+                    t_test(y_variable ~ x_variable,
+                           paired = TRUE,
+                           detailed = TRUE) %>% 
+                    select(method, alternative, group1, group2, 
+                           estimate, conf.low, conf.high, 
+                           statistic, df, p) %>% 
+                    mutate(p = round(p, 5),
+                           method = "Paired t-test",
+                           alternative = 'Two-sided') %>% 
+                    setNames(nm = c('Test', 'Alternative', 'Group 1', 'Group 2', 
+                                    'Delta means', 
+                                    'Delta means 95% CI lower limit',
+                                    'Delta means 95% CI upper limit',
+                                    'Statistic', 'DF', 'p-value'))
+            
+            } else if(input$test_type == 'nonparametric'){
+                
+                df_analysis() %>% 
+                    wilcox_test(y_variable ~ x_variable,
+                                paired = TRUE,
+                                detailed = TRUE) %>% 
+                    select(method, alternative, group1, group2, 
+                           estimate, conf.low, conf.high, 
+                           statistic, p) %>% 
+                    mutate(p = round(p, 5),
+                           method = 'Wilcoxon signed-rank test',
+                           alternative = 'Two-sided') %>%
+                    setNames(nm = c('Test', 'Alternative', 'Group 1', 
+                                    'Group 2', 'Difference in location', 
+                                    '95% CI lower limit',
+                                    '95% CI upper limit',
+                                    'Statistic', 'p-value'))
+                    
+            }
+            
+        } else if(length(levels(df_analysis()$x_variable)) > 2){
+            
+            if(input$test_type == 'parametric'){
+                
+                oneway_rm_anova <- df_analysis() %>% 
+                    anova_test(dv = y_variable,
+                               wid = ID,
+                               within = x_variable,
+                               type = 2,
+                               detailed = TRUE)
+                
+                tibble(Method = 'One-way repeated measures ANOVA (Type II sum of squares)',
+                       DFn = oneway_rm_anova$ANOVA$DFn[[2]],
+                       DFd = oneway_rm_anova$ANOVA$DFd[[2]],
+                       Statistic = oneway_rm_anova$ANOVA$`F`[[2]],
+                       `p-value` = round(oneway_rm_anova$ANOVA$p[[2]], 5),
+                       `Mauchly's Test for Sphericity (Statistic)` = oneway_rm_anova$`Mauchly's Test for Sphericity`$W,
+                       `p-value [M]` = round(oneway_rm_anova$`Mauchly's Test for Sphericity`$p, 5),
+                       `Sphericity correction (Geenhouse-Geisser epsilon)` = oneway_rm_anova$`Sphericity Corrections`$GGe,
+                       `DF(n,d) [GG]` = oneway_rm_anova$`Sphericity Corrections`$`DF[GG]`,
+                       `p-value [GG]` = round(oneway_rm_anova$`Sphericity Corrections`$`p[GG]`, 5))
+                
+            } else if(input$test_type == 'nonparametric'){
+                
+                df_analysis() %>% 
+                    friedman_test(y_variable ~ x_variable | ID) %>%
+                    mutate(Test = 'Friedman test',
+                           p = round(p, 5)) %>% 
+                    select(Test, n, statistic, df, p) %>%
+                    setNames(nm = c('Test', 'N', 'Statistic', 'DF', 'p-value'))
+                
+            }
+        }
     }
 )
 
