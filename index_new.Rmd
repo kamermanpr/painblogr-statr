@@ -143,7 +143,7 @@ To download a dataset to play around with on the app, we recommend [Allison Hors
 
 The app was developed by Peter Kamerman (WWW: [painblogr.org](https://www.painblogr.org){ target='_blank'}, GitHub: [kamermanpr](https://github.com/kamermanpr){ target='_blank' }).
 
-Please cite this app as: Kamerman PR (2021). statr: online statistical tests. Version: v0.1.3. DOI: [10.5281/zenodo.5977332](https://doi.org/10.5281/zenodo.5977332).
+Please cite this app as: Kamerman PR (2022). statr: online statistical tests. Version: v0.1.3. DOI: [10.5281/zenodo.5977332](https://doi.org/10.5281/zenodo.5977332).
 
 **License**  
 
@@ -368,7 +368,7 @@ uiOutput('testtype')
 
 # Select whether to calculate effect size
 checkboxInput(inputId = 'effect_size',
-              label = 'Calculate effect size (Note: bootstrapped confidence intervals, so calculation can take a while to perform...be patient)',
+              label = 'Calculate effect size (Note: bais-corrected and accelerated bootstrapped 95% confidence intervals, with 1000 replications, so calculation can take a while to perform...be patient)',
               value = FALSE)
  
 # Select whether to perform pairwise tests 
@@ -533,7 +533,7 @@ output$test1 <- renderTable(
                                type = 2,
                                detailed = TRUE)
                 
-                tibble(Method = 'One-way ANOVA (Type II sum of squares)',
+                tibble(Method = 'One-way ANOVA',
                        DFn = oneway_anova$DFn,
                        DFd = oneway_anova$DFd,
                        Statistic = oneway_anova$`F`,
@@ -604,7 +604,7 @@ output$test1 <- renderTable(
                                type = 2,
                                detailed = TRUE)
                 
-                tibble(Method = 'One-way repeated measures ANOVA (Type II sum of squares)',
+                tibble(Method = 'One-way repeated measures ANOVA',
                        DFn = oneway_rm_anova$ANOVA$DFn[[2]],
                        DFd = oneway_rm_anova$ANOVA$DFd[[2]],
                        Statistic = oneway_rm_anova$ANOVA$`F`[[2]],
@@ -632,17 +632,263 @@ output$test1 <- renderTable(
 tableOutput('test1')
 ```
 
-### Effect size
+### Standardised effect size
 
 ```{r continuous_v_categorical_6}
+output$effect1 <- renderTable(
+    
+    if(req(input$id_var) == 'None' & req(input$effect_size) == TRUE){
+        
+        if(length(levels(df_analysis()$x_variable)) == 1){
+            
+            if(input$test_type == 'parametric'){
+                
+                df_analysis() %>% 
+                    cohens_d(y_variable ~ 1,
+                             mu = input$mu_value,
+                             ci = TRUE, 
+                             ci.type = 'bca') %>% 
+                    mutate(measure = "Cohen's d",
+                           group2 = input$mu_value) %>% 
+                    select(measure, group1, group2, n, effsize, 
+                           conf.low, conf.high) %>% 
+                    setNames(nm = c('Measure', 'Group 1', 'Null value', 
+                                    'N', 'Effect size', '95% CI lower limit',
+                                    '95% CI upper limit'))
+                
+            } else if(input$test_type == 'nonparametric'){
+                
+                df_analysis() %>% 
+                    wilcox_effsize(y_variable ~ 1, 
+                                   mu = input$mu_value,
+                                   ci = TRUE,
+                                   ci.type = 'bca') %>% 
+                    mutate(measure = "Wilcoxon effect size (r)",
+                           group2 = input$mu_value) %>% 
+                    select(measure, group1, group2, n, effsize, 
+                           conf.low, conf.high) %>% 
+                    setNames(nm = c('Measure', 'Group 1', 'Null value', 'N', 
+                                    'Effect size', '95% CI lower limit',
+                                    '95% CI upper limit'))
+                    
+            }
+        
+        } else if(length(levels(df_analysis()$x_variable)) == 2){
+            
+            if(input$test_type == 'parametric'){
+            
+                df_analysis() %>% 
+                    cohens_d(y_variable ~ x_variable,
+                             ci = TRUE,
+                             ci.type = 'bca') %>% 
+                    mutate(measure = "Cohen's d") %>% 
+                    select(measure, group1, group2, n1, n2, effsize, 
+                           conf.low, conf.high) %>% 
+                    setNames(nm = c('Measure', 'Group 1', 'Group 2', 
+                                    'N 1', 'N 2', 'Effect size', 
+                                    '95% CI lower limit', '95% CI upper limit'))
+            
+            } else if(input$test_type == 'nonparametric'){
+                
+                df_analysis() %>% 
+                    wilcox_effsize(y_variable ~ x_variable,
+                                   ci = TRUE,
+                                   ci.type = 'bca') %>% 
+                    mutate(measure = "Wilcoxon effect size (r)") %>% 
+                    select(measure, group1, group2, n1, n2, effsize, 
+                           conf.low, conf.high) %>% 
+                    setNames(nm = c('Measure', 'Group 1', 'Group 2', 'N 1', 'N2', 
+                                    'Effect size', '95% CI lower limit',
+                                    '95% CI upper limit'))
+                
+            }
+            
+        } else if(length(levels(df_analysis()$x_variable)) > 2){
+            
+            if(input$test_type == 'parametric'){
+            
+                anova_eta <- eta_squared(aov(y_variable ~ x_variable, 
+                                             data = df_analysis()))
+                
+                eta_boot <- function(d, i){
+                    data <- d[i, ]
+                    aov_model <- aov(y_variable ~ x_variable, data = data)
+                    eta_squared(aov_model)
+                    }
+                
+                eta_bca <- boot.ci(boot(data = df_analysis(), 
+                                        statistic = eta_boot, 
+                                        R = 1000, stype = 'i'), 
+                                   type = 'bca')
+                
+                tibble(Measure = 'eta-squared',
+                       `Effect size` = round(anova_eta, 3),
+                       `95% CI lower limit` = round(eta_bca$bca[[4]], 3),
+                       `95% CI upper limit` = round(eta_bca$bca[[5]], 3))
+            
+            } else if(input$test_type == 'nonparametric'){
+                
+                df_analysis() %>% 
+                    kruskal_effsize(as.numeric(y_variable) ~ factor(x_variable),
+                                    ci = TRUE,
+                                    ci.type = 'bca') %>% 
+                    select(method, n, effsize, conf.low, conf.high) %>%
+                    mutate(method = 'eta-squared [H]',
+                           effsize = round(effsize, 3),
+                           conf.low = round(conf.low, 3),
+                           conf.high = round(conf.high, 3)) %>% 
+                    setNames(nm = c('Measure', 'N', 'Effect size', 
+                                    '95% CI lower limit', '95% CI upper limit'))
+                
+            }
+        }
+        
+    } else if(req(input$id_var) != 'None' & req(input$effect_size) == TRUE) {
+        
+        if(length(levels(df_analysis()$x_variable)) == 2){
+            
+            if(input$test_type == 'parametric'){
+            
+                df_analysis() %>% 
+                    cohens_d(y_variable ~ x_variable,
+                             paired = TRUE,
+                             ci = TRUE,
+                             ci.type = 'bca') %>% 
+                    mutate(measure = "Cohen's d") %>% 
+                    select(measure, group1, group2, n1, n2, effsize, 
+                           conf.low, conf.high) %>% 
+                    setNames(nm = c('Measure', 'Group 1', 'Group 2', 
+                                    'N 1', 'N 2', 'Effect size', 
+                                    '95% CI lower limit', '95% CI upper limit'))
+            
+            } else if(input$test_type == 'nonparametric'){
+                
+                df_analysis() %>% 
+                    wilcox_effsize(y_variable ~ x_variable,
+                                   paired = TRUE,
+                                   ci = TRUE,
+                                   ci.type = 'bca') %>% 
+                    mutate(measure = "Wilcoxon effect size (r)") %>% 
+                    select(measure, group1, group2, n1, n2, effsize, 
+                           conf.low, conf.high) %>% 
+                    setNames(nm = c('Measure', 'Group 1', 'Group 2', 'N 1', 'N2', 
+                                    'Effect size', '95% CI lower limit',
+                                    '95% CI upper limit'))
+                
+            }
+            
+        } else if(length(levels(df_analysis()$x_variable)) > 2){
+            
+            if(input$test_type == 'parametric'){
+                
+                rm_anova_ges <- df_analysis() %>% 
+                    anova_test(dv = y_variable,
+                               wid = ID,
+                               within = x_variable)
+                
+                tibble(Measure = 'Generalised eta-squared',
+                       `Effect size` = round(rm_anova_ges$ANOVA$ges, 3),
+                       `Confidence interval` = 'None available')
+                
+            } else if(input$test_type == 'nonparametric'){
+                
+                df_analysis() %>% 
+                    friedman_effsize(y_variable ~ x_variable | ID,
+                                     ci = TRUE,
+                                     ci.type = 'bca') %>%
+                    mutate(Measure = "Kendall's W",
+                           effsize = round(effsize, 3),
+                           conf.low = round(conf.low, 3),
+                           conf.high = round(conf.high, 3)) %>% 
+                    select(Measure, n, effsize, conf.low, conf.high) %>%
+                    setNames(nm = c('Measure', 'N', 'Effect size', 
+                                    '95% CI lower limit', '95% CI upper limit'))
+                
+            }
+        }
+    }
+)
 
-
+tableOutput('effect1')
 ```
 
 ### Pairwise tests
 
-```{r continuous_v_categorical}
+```{r continuous_v_categorical_7}
+output$pairwise1 <- renderTable(
+     
+    if(req(input$id_var) == 'None'){
+        
+        if(req(input$pairwise_tests) == TRUE &
+           length(levels(df_analysis()$x_variable)) <= 2){
+        
+        data.frame(Message = 'Paiwise analysis is only available for tests involving grouping variables with three or more levels.')
+            
+            } else if(input$pairwise_tests == TRUE &
+                      length(levels(df_analysis()$x_variable)) > 2){
+                
+                if(input$test_type == 'parametric'){
+                    
+                    df_analysis() %>% 
+                        pairwise_t_test(y_variable ~ x_variable,
+                                        p.adjust.method = 'holm') %>% 
+                        mutate(type = "Welch's t-test") %>% 
+                        select(type, group1, group2, n1, n2, p, p.adj) %>% 
+                        setNames(nm = c('Test', 'Group 1', 'Group 2', 
+                                        'N1', 'N2', 'p-value',
+                                        'Adjusted p-value (Holm method)'))
+                    
+                } else {
+                    
+                    df_analysis() %>% 
+                        pairwise_wilcox_test(y_variable ~ x_variable,
+                                             p.adjust.method = 'holm') %>% 
+                        mutate(type = "Wilcoxon rank-sum test") %>% 
+                        select(type, group1, group2, n1, n2, p, p.adj) %>% 
+                        setNames(nm = c('Test', 'Group 1', 'Group 2', 
+                                        'N1', 'N2', 'p-value', 
+                                        'Adjusted p-value (Holm method)'))
+                    
+                    }
+                }
+    } else if(req(input$id_var) != 'None'){
+        
+        if(req(input$pairwise_tests) == TRUE &
+           length(levels(df_analysis()$x_variable)) <= 2){
+            
+            data.frame(Message = 'Paiwise analysis is only available for tests involving grouping variables with three or more levels.')
+            
+            } else if(input$pairwise_tests == TRUE &
+                      length(levels(df_analysis()$x_variable)) > 2){
+                
+                if(input$test_type == 'parametric'){
+                    
+                    df_analysis() %>% 
+                        pairwise_t_test(y_variable ~ x_variable,
+                                        paired = TRUE,
+                                        p.adjust.method = 'holm') %>% 
+                        mutate(type = "Paired t-test") %>% 
+                        select(type, group1, group2, n1, n2, p, p.adj) %>% 
+                        setNames(nm = c('Test', 'Group 1', 'Group 2', 
+                                        'N1', 'N2', 'p-value',
+                                        'Adjusted p-value (Holm method)'))
+                    
+                    } else {
+                    
+                    df_analysis() %>% 
+                        pairwise_wilcox_test(y_variable ~ x_variable,
+                                             paired = TRUE,
+                                             p.adjust.method = 'holm') %>% 
+                        mutate(type = "Wilcoxon signed-rank test") %>% 
+                        select(type, group1, group2, n1, n2, p, p.adj) %>% 
+                        setNames(nm = c('Test', 'Group 1', 'Group 2', 
+                                        'N1', 'N2', 'p-value', 
+                                        'Adjusted p-value (Holm method)'))
+                    
+                    }
+                }
+        }
+)
 
-
-
+tableOutput('pairwise1')
 ```
