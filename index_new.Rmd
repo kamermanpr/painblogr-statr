@@ -15,6 +15,7 @@ library(shiny)
 library(shinyjqui)
 library(ggplot2)
 library(ggthemes)
+library(vcdExtra)
 library(dplyr)
 library(tidyr)
 library(tibble)
@@ -22,7 +23,7 @@ library(parameters)
 library(readxl)
 library(readr)
 library(skimr)
-#library(gmodels)
+library(gmodels)
 library(janitor)
 library(rstatix)
 library(boot)
@@ -49,8 +50,9 @@ my_skim <- skim_with(base = sfl(Missing = n_missing,
 
 ```{r eval = FALSE}
 # Packages
-library(stringr)
+library(tidyverse)
 library(palmerpenguins)
+library(lme4)
 
 # Datasets
 ## Long format
@@ -58,35 +60,98 @@ library(palmerpenguins)
 iris %>% 
     write_csv(file = 'data/iris_original.csv')
 
-iris %>% 
-    group_by(Species) %>% 
-    slice_head(n = 5) %>% 
-    ungroup() %>% 
-    select(Species, everything()) %>% 
-    write_csv(file = 'data/iris_reduced.csv')
-
 ### Penguins
 penguins %>% 
     write_csv(file = 'data/penguins_orginal.csv')
 
-penguins %>% 
-    filter(complete.cases(.)) %>% 
-    group_by(species, island) %>% 
-    slice_head(n = 3) %>% 
-    ungroup() %>% 
-    select(-year) %>% 
-    select(species, everything()) %>% 
-    write_csv(file = 'data/penguins_sample.csv')
-
 ### Sleep study
 sleepstudy %>% 
+    as_tibble() %>% 
+    rename(reaction_time_ms = Reaction,
+           sleep_deprivation_days = Days,
+           participant = Subject) %>% 
     write_csv(file = 'data/sleepstudy_original.csv')
 
 ### Sleep
+sleep %>% 
+    as_tibble() %>%
+    select(ID, group, extra) %>% 
+    mutate(group = ifelse(group == 1,
+                          yes = 'A',
+                          no = 'B')) %>% 
+    setNames(nm = c('participant', 'drug', 'extra_sleep_hours')) %>% 
+    write_csv(file = 'data/sleep_cleaned.csv')
+
 #### Modified to one group only
 sleep %>% 
+    as_tibble() %>%
     filter(group == 1) %>% 
-    write_csv(file = 'data/sleep_modified.csv')
+    select(ID, extra) %>% 
+    setNames(nm = c('participant', 'extra_sleep_hours')) %>% 
+    write_csv(file = 'data/sleep_group_1.csv')
+
+### mtcars
+#### Reduced number of variables
+#### Cleaned column names
+mtcars %>% 
+    rownames_to_column(var = 'cars') %>% 
+    as_tibble() %>% 
+    select(cars, mpg, cyl, wt, hp, disp, am) %>% 
+    setNames(nm = c('car', 'miles_per_gallon', 'number_of_cylinders',
+                    'weight_1000lbs', 'gross_horsepower', 
+                    'displacement_cubic.inches',
+                    'transmission')) %>% 
+    mutate(transmission = ifelse(transmission == 0,
+                                 yes = 'automatic',
+                                 no = 'manual')) %>% 
+    write_csv(file = 'data/mtcars_cleaned.csv')
+
+### Infertility
+#### Reduced number of variables
+#### Cleaned column names
+infert %>% 
+    as_tibble() %>% 
+    select(case, education, age, parity, induced, spontaneous) %>% 
+    mutate(case = ifelse(case == 1,
+                         yes = 'case',
+                         no = 'control'),
+           induced = case_when(
+               induced == 0 ~ '0',
+               induced == 1 ~ '1',
+               induced == 2 ~ '2 or more'
+           ),
+           spontaneous = case_when(
+               spontaneous == 0 ~ '0',
+               spontaneous == 1 ~ '1',
+               spontaneous == 2 ~ '2 or more'
+           )) %>% 
+    setNames(nm = c('group', 'years_of_education', 'age_years', 
+                    'parity', 'number_of_induced_abortions',
+                    'number_of_spontaneous_abortions')) %>% 
+    write_csv('data/infertility_cleaned.csv')
+
+### Smokers
+#### 25 non-smokers and 25 smokers watched an emotive video showing the 
+#### impact that deaths from smoking-related cancers had on families
+#### Smoking status assessed before and two-weeks after watching the video
+
+smokers <- read_csv('data/smokers_original.csv')
+smokers %>% 
+    as_tibble() %>% 
+    mutate(participant_ID = 1:50) %>% 
+    select(participant_ID, Before, After) %>% 
+    setNames(nm = c('participant_ID', 
+                    'smoking_status_before_intervention', 
+                    'smoking_status_after_intervention')) %>%
+    mutate(smoking_status_before_intervention =
+               ifelse(smoking_status_before_intervention == 0,
+                      yes = 'non-smoker',
+                      no = 'smoker'),
+           smoking_status_after_intervention = 
+               ifelse(smoking_status_after_intervention == 0,
+                      yes = 'non-smoker',
+                      no = 'smoker')) %>% 
+    write_csv('data/smokers_cleaned.csv')
 ```
 
 Welcome {data-nav='Welcome'}
@@ -167,6 +232,8 @@ To report any issues you have with the app, please use the following [link](http
 - Winston Chang, Joe Cheng, JJ Allaire, Carson Sievert, Barret Schloerke, Yihui Xie, Jeff Allen, Jonathan McPherson, Alan Dipert and Barbara Borges (2021). shiny: Web Application Framework for R. R package version 1.7.1. URL: [https://CRAN.R-project.org/package=shiny](https://CRAN.R-project.org/package=shiny){ target='_blank' }.
 
 - Sam Firke (2021). janitor: Simple Tools for Examining and Cleaning Dirty Data. R package version 2.1.0. URL: [https://CRAN.R-project.org/package=janitor](https://CRAN.R-project.org/package=janitor){ target="_blank" }
+
+- Michael Friendly (2022). vcdExtra: 'vcd' Extensions and Additions. R package version 0.7-6. [https://CRAN.R-project.org/package=vcdExtra](https://CRAN.R-project.org/package=vcdExtra){ target='_blank' }.
   
 - Lionel Henry and Hadley Wickham (2021). rlang: Functions for Base Types and Core R and 'Tidyverse' Features. R package version 0.4.12. URL: [https://CRAN.R-project.org/package=rlang](https://CRAN.R-project.org/package=rlang){ target='_blank' }.
 
@@ -1255,7 +1322,7 @@ plotOutput('plotcor')
 
 ```
 
-### Correlation
+### Analysis output
 
 ```{r correlation_8}
 output$corrtest <- renderTable(
@@ -1355,4 +1422,156 @@ output$corrtest <- renderTable(
 )
 
 tableOutput('corrtest')
+```
+
+Contingency tables {data-navmenu='Analysis'}
+=====================================  
+
+Inputs {.sidebar data-width=350}
+-------------------------------------
+
+```{r tables_1}
+h1('Contingency tables')
+
+p(strong('Remember to upload your data first.'))
+
+hr()
+
+# Select variables
+## Y-axis variable
+output$rowtab <- renderUI({
+    req(df_categorical())
+    selectInput(inputId = 'row_tab',
+                label = 'Choose row variable',
+                choices = names(df_categorical()))
+    })
+
+uiOutput('rowtab')
+
+## x-axis variable
+output$columntab <- renderUI({
+    req(df_categorical())
+    selectInput(inputId = 'column_tab',
+                label = 'Choose column variable',
+                choices = names(df_categorical()))
+    })
+
+uiOutput('columntab')
+
+radioButtons(inputId = 'tab_test',
+             label = 'Choose test',
+             choices = c("Pearson's chi-squared test (or Fisher's exact test if any expected values < 5)" = 'chi',
+                         'Cochran-Mantel-Haenszel test (CMH) (row and column variables are ordinal)' = 'cmh',
+                         'CMH test (only the row variable is ordinal)' = 'cmh_y',
+                         'CMH test (only the column variable is ordinal)' = 'cmh_x'))
+```
+
+```{r tables_2}
+# Create dataframe
+df_xtab <- reactive({
+    
+    req(df_categorical())
+    
+    df_categorical() %>% 
+        select(!!!input$row_tab, !!!input$column_tab)
+    
+})
+```
+
+
+Row 
+-------------------------------------
+
+### Contingency table
+
+```{r tables_3}
+output$crosstab <- renderPrint({
+    
+    req(input$column_tab, input$row_tab)
+    
+    if(input$column_tab != input$row_tab){
+        
+        CrossTable(x = df_xtab()[[1]], y = df_xtab()[[2]],
+                   digits = 1,
+                   prop.chisq = FALSE,
+                   prop.t = FALSE,
+                   format = 'SPSS',
+                   dnn = c(input$row_tab, input$column_tab))
+
+    }
+})
+
+verbatimTextOutput('crosstab')
+```
+
+### Mosaic plot (2-way tables only, set ID column to 'None')
+
+```{r tables_4}
+output$mosaic <- renderPlot({
+    
+    req(input$column_tab, input$row_tab)
+    
+    if(input$column_tab != input$row_tab){
+        
+        mosaicplot(t(table(df_xtab())), 
+                   main = NULL, 
+                   cex.axis = 1)
+        
+    }
+})
+
+plotOutput('mosaic')
+```
+
+### Analysis output
+
+```{r tables_5}
+output$tabresult <- renderTable({
+    
+    req(input$column_tab, input$row_tab)
+    
+    if(input$column_tab != input$row_tab){
+        
+        test <- sum(unlist(as.data.frame(chisq.test(table(df_xtab()))$expected)) < 5)
+        
+        n <- tibble(N = nrow(df_xtab()))
+        
+        if(input$tab_test == 'chi' & test == 0){
+            
+            chisq_test(table(df_xtab())) %>% 
+                mutate(method = "Chi-squared test for independence",
+                       alternative = 'Two-sided') %>% 
+                select(method, alternative, n, statistic, df, p) %>% 
+                setNames(nm = c('Method', 'Alternative', 'N',
+                                'Statistic', 'DF', 'p-value'))
+            
+        } else if(input$tab_test == 'chi' & test > 0){
+            
+            fisher_test(table(df_xtab())) %>% 
+                mutate(method = "Fisher's exact test",
+                       alternative = 'Two-sided') %>% 
+                select(method, alternative, n, p) %>% 
+                setNames(nm = c('Method', 'Alternative', 'N', 'p-value'))
+            
+        } else if(input$tab_test == 'cmh'){
+            
+            cmh.cor <- CMHtest(t(table(df_xtab())),
+                               types = 'cor') %>% 
+                .$table %>% 
+                as_tibble() %>% 
+                rename(Statistic = Chisq,
+                       DF = Df,
+                       'p-value' = Prob) %>% 
+                mutate(Method = 'CMH test (ordinal rows and columns)',
+                       Alternative = 'Two-sided')
+            
+            bind_cols(n, cmh.cor) %>% 
+                select(Method, Alternative, N, Statistic, DF, `p-value`)
+            
+        }
+    }
+})
+
+tableOutput('tabresult')
+
 ```
