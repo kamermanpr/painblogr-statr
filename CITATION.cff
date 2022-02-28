@@ -4,7 +4,7 @@ authors:
 - family-names: "Peter"
   given-names: "Kamerman"
 title: "statr: online statistical tests"
-version: v0.1
+version: 0.1
 doi: 10.5281/zenodo.6302902
 date-released: 2022-02-28
 url: "https://github.com/kamermanpr/painblogr-statr"
