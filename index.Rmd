@@ -1634,7 +1634,9 @@ output$tabresult <- renderTable({
         } else if(input$tab_test == 'cmh'){
             
             cmh.cor <- CMHtest(table(df_xtab()),
-                               types = 'cor') %>% 
+                               types = 'cor',
+                               cscores = 'midrank',
+                               rscores = 'midrank') %>% 
                 .$table %>% 
                 as_tibble() %>% 
                 rename(Statistic = Chisq,
@@ -1650,7 +1652,9 @@ output$tabresult <- renderTable({
             
             # Column mean scores treats the table rows as ordinal
             cmh.cmeans <- CMHtest(table(df_xtab()),
-                                  types = 'cmeans') %>% 
+                                  types = 'cmeans',
+                                  cscores = 'midrank',
+                                  rscores = 'midrank') %>% 
                 .$table %>% 
                 as_tibble() %>% 
                 rename(Statistic = Chisq,
@@ -1666,7 +1670,9 @@ output$tabresult <- renderTable({
             
             # Row mean scores treats the table columns as ordinal
             cmh.rmeans <- CMHtest(table(df_xtab()),
-                                  types = 'rmeans') %>% 
+                                  types = 'rmeans',
+                                  cscores = 'midrank',
+                                  rscores = 'midrank') %>% 
                 .$table %>% 
                 as_tibble() %>% 
                 rename(Statistic = Chisq,
