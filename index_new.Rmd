@@ -16,7 +16,6 @@ library(shinyjqui)
 library(ggplot2)
 library(ggthemes)
 library(vcdExtra)
-library(dplyr)
 library(tidyr)
 library(tibble)
 library(parameters)
@@ -27,6 +26,7 @@ library(gmodels)
 library(janitor)
 library(rstatix)
 library(boot)
+library(dplyr)
 
 # skimr variables
 my_skim <- skim_with(base = sfl(Missing = n_missing,
@@ -338,14 +338,17 @@ df_numeric <- reactive({
         mutate(across(.cols = everything(), ~ as.numeric(.x)))
 })
 
-output$tbl_numeric <- renderTable(
+output$tbl_numeric <- renderTable({
+    
     if(ncol(df_numeric()) != 0){
+        
         df_numeric() %>% 
             my_skim() %>% 
             yank('numeric') %>% 
             rename(Variable = skim_variable)
+        
     }
-)
+}, digits = 3)
 
 tableOutput('tbl_numeric')
 ```
@@ -354,21 +357,27 @@ tableOutput('tbl_numeric')
 
 ```{r upload_3}
 df_categorical <- reactive({
+    
     req(df())
+    
     df() %>% 
         select(!!!input$categorical) %>% 
         mutate(across(.cols = everything(), ~ factor(.x)))
+    
 })
 
-output$tbl_categorical <- renderTable(
+output$tbl_categorical <- renderTable({
+    
     if(ncol(df_categorical()) != 0){
+        
         df_categorical() %>% 
             my_skim() %>% 
             yank('factor') %>% 
             rename(Variable = skim_variable,
                    `Unique levels` = n_unique)
+        
     }
-)
+}, digits = 3)
 
 tableOutput('tbl_categorical')
 ```
@@ -376,7 +385,9 @@ tableOutput('tbl_categorical')
 ```{r upload_4}
 # Generate combined data file
 df_combined <- reactive({
+    
     bind_cols(df_numeric(), df_categorical())
+    
     })
 ```
 
@@ -402,55 +413,70 @@ hr()
 # Select variables
 ## Response variable
 output$yvar <- renderUI({
+    
     req(df_numeric())
+    
     varSelectInput(inputId = 'y_var',
                    label = 'Choose continuous response (y) variable',
                    selected = NULL,
                    data = df_numeric())
+    
     })
 
 uiOutput('yvar')
 
 ## Grouping variable
 output$groupvar <- renderUI({
+    
     req(df_categorical())
+    
     varSelectInput(inputId = 'group_var',
                    label = 'Choose categorical grouping (x) variable (in the case of one-sample tests, the variable must have one level only)',
                    selected = NULL,
                    data = df_categorical())
+    
     })
 
 uiOutput('groupvar')
 
 # Set mu level for one-sample tests
 output$muvalue <- renderUI({
+    
     req(df_combined())
+    
     numericInput(inputId = 'mu_value',
                  label = 'Choose the true value of the mean/location shift for one-sample tests',
                  value = 0)
+    
 })
 
 uiOutput('muvalue')
 
 # Select unique identifier variable
 output$idvar <- renderUI({
+    
     req(df_categorical())
+    
     selectInput(inputId = 'id_var',
                 label = 'Optional: Choose repeated measures identifier (e.g., participant ID)',
                 selected = 'None',
                 choices = c('None', names(df_categorical())))
+    
     })
 
 uiOutput('idvar')
 
 # Select test type
 output$testtype <- renderUI({
+    
     req(df_analysis())
+    
     selectInput(inputId = 'test_type',
                 label = 'Choose test type',
                 selected = 'parametric',
                 choices = c('Parametric' = 'parametric',
                             'Distribution free (non-parametric)' = 'nonparametric'))
+    
     })
 
 uiOutput('testtype')
@@ -470,6 +496,7 @@ checkboxInput(inputId = 'pairwise_tests',
 
 ```{r continuous_v_categorical_2}
 df_analysis <- reactive({
+    
     req(input$group_var)
     req(input$y_var)
     req(input$id_var)
@@ -496,16 +523,19 @@ Column
 ### Tabulated summary: Continuous (y) variable stratified by the grouping (x) variable
 
 ```{r continuous_v_categorical_3}
-output$tbl_stratified <- renderTable(
+output$tbl_stratified <- renderTable({
+    
     if(ncol(df_analysis()) != 0){
+        
         df_analysis() %>% 
             group_by(x_variable) %>% 
             my_skim() %>% 
             yank('numeric') %>% 
             select(-skim_variable) %>% 
             rename(Group = x_variable)
+        
     }
-)
+}, digits = 3)
 
 tableOutput('tbl_stratified')
 ```
@@ -516,6 +546,7 @@ tableOutput('tbl_stratified')
 output$boxplot <- renderPlot(
     
     if(ncol(df_analysis()) != 0){
+        
         par(pty = 's')
         with(df_analysis(), boxplot(y_variable ~ x_variable,
                                     na.rm = TRUE,
@@ -523,6 +554,7 @@ output$boxplot <- renderPlot(
                                     ylab = 'Y variable'))
         abline(h = input$mu_value, 
                col = 'red')
+        
     }
 )
     
@@ -532,7 +564,7 @@ plotOutput('boxplot')
 ### Model summary
 
 ```{r continuous_v_categorical_5}
-output$test1 <- renderTable(
+output$test1 <- renderTable({
     
     if(req(input$id_var) == 'None'){
         
@@ -719,7 +751,7 @@ output$test1 <- renderTable(
             }
         }
     }
-)
+}, digits = 3)
 
 tableOutput('test1')
 ```
@@ -727,7 +759,7 @@ tableOutput('test1')
 ### Standardised effect size
 
 ```{r continuous_v_categorical_6}
-output$effect1 <- renderTable(
+output$effect1 <- renderTable({
     
     if(req(input$id_var) == 'None' & req(input$effect_size) == TRUE){
         
@@ -899,7 +931,7 @@ output$effect1 <- renderTable(
             }
         }
     }
-)
+}, digits = 3)
 
 tableOutput('effect1')
 ```
@@ -907,7 +939,7 @@ tableOutput('effect1')
 ### Pairwise tests
 
 ```{r continuous_v_categorical_7}
-output$pairwise1 <- renderTable(
+output$pairwise1 <- renderTable({
      
     if(req(input$id_var) == 'None'){
         
@@ -980,7 +1012,7 @@ output$pairwise1 <- renderTable(
                     }
                 }
         }
-)
+}, digits = 3)
 
 tableOutput('pairwise1')
 ```
@@ -1005,22 +1037,28 @@ hr()
 # Select variables
 ## Dependent variable
 output$ynumeric <- renderUI({
+    
     req(df_numeric())
+    
     varSelectInput(inputId = 'y_numeric',
                    label = 'Choose continuous dependent (y) variable',
                    selected = NULL,
                    data = df_numeric())
+    
     })
 
 uiOutput('ynumeric')
 
 ## Independent variable
 output$xnumeric <- renderUI({
+    
     req(df_numeric())
+    
     varSelectInput(inputId = 'x_numeric',
                    label = 'Choose continuous independent (x) variable',
                    selected = NULL,
                    data = df_numeric())
+    
     })
 
 uiOutput('xnumeric')
@@ -1028,12 +1066,14 @@ uiOutput('xnumeric')
 
 ```{r continuous_v_continuous_2}
 df_analysis_ols <- reactive({
+    
     req(input$y_numeric)
     req(input$x_numeric)
         
         df_combined() %>% 
             select(!!!input$y_numeric, !!!input$x_numeric) %>% 
             setNames(nm = c('y_variable', 'x_variable'))
+        
 })
 ```
 
@@ -1043,14 +1083,14 @@ Column
 ### Tabulated summary: Continuous dependent variable (y) and continuous independent variable (x)
 
 ```{r continuous_v_continuous_3}
-output$tbl_continuous <- renderTable(
+output$tbl_continuous <- renderTable({
     
     if(ncol(df_analysis_ols()) == 2){
         df_analysis_ols() %>% 
             my_skim() %>% 
             yank('numeric')
     }
-)
+}, digits = 3)
 
 tableOutput('tbl_continuous')
 ```
@@ -1061,12 +1101,14 @@ tableOutput('tbl_continuous')
 output$scatterplot <- renderPlot(
     
     if(ncol(df_analysis_ols()) == 2){
+        
         par(pty = 's')
         with(df_analysis_ols(), plot(y_variable ~ x_variable,
                                      na.rm = TRUE,
                                      xlab = 'X variable',
                                      ylab = 'Y variable'))
         abline(lm(y_variable ~ x_variable, data = df_analysis_ols()))
+        
     }
 )
     
@@ -1076,14 +1118,16 @@ plotOutput('scatterplot')
 ### Model summary
 
 ```{r continuous_v_continuous_5}
-output$ols <- renderTable(
+output$ols <- renderTable({
     
     if(ncol(df_analysis_ols()) == 2){
+        
         mod_ols <- lm(y_variable ~ x_variable, data = df_analysis_ols())
         model_parameters(mod_ols)
+        
     }
     
-)
+}, digits = 3)
 
 tableOutput('ols')
 ```
@@ -1094,11 +1138,13 @@ tableOutput('ols')
 output$residuals <- renderPlot(
     
     if(ncol(df_analysis_ols()) == 2){
+        
         par(mfrow = c(1, 4))
         par(pty = 's')
         plot(lm(y_variable ~ x_variable, data = df_analysis_ols()), 
              which = c(1, 2, 3, 5))
         par(mfrow = c(1, 1))
+        
     }
     
 )
@@ -1122,20 +1168,26 @@ hr()
 # Select variables
 ## Y-axis variable
 output$ycor <- renderUI({
+    
     req(df_combined())
+    
     selectInput(inputId = 'y_cor',
                 label = 'Choose y variable',
                 choices = names(df_combined()))
+    
     })
 
 uiOutput('ycor')
 
 ## x-axis variable
 output$xcor <- renderUI({
+    
     req(df_combined())
+    
     selectInput(inputId = 'x_cor',
                 label = 'Choose x variable',
                 choices = names(df_combined()))
+    
     })
 
 uiOutput('xcor')
@@ -1163,7 +1215,9 @@ radioButtons(inputId = 'y_cor_type',
              select = 'continuous')
 
 output$yordering <- renderUI({
+    
     req(input$y_cor_type)
+    
     if(input$y_cor_type == 'ordinal'){
         orderInput(inputId = 'y_ordering',
                    label = 'Order y variable levels by dragging and dropping',
@@ -1185,8 +1239,11 @@ radioButtons(inputId = 'x_cor_type',
              select = 'continuous')
 
 output$xordering <- renderUI({
+    
     req(input$x_cor_type)
+    
     if(input$x_cor_type == 'ordinal'){
+        
         orderInput(inputId = 'x_ordering',
                    label = 'Order x variable levels by dragging and dropping',
                    items = levels(factor(df_combined() %>% 
@@ -1194,7 +1251,9 @@ output$xordering <- renderUI({
                                              setNames(nm = 'x') %>% 
                                              .$x)),
                    item_class = 'primary',
-                   width = '340px')}
+                   width = '340px')
+        
+        }
     
 })
 
@@ -1203,6 +1262,7 @@ uiOutput('xordering')
 
 ```{r correlation_4}
 df_analysis_cor <- reactive({
+    
     req(input$y_cor)
     req(input$x_cor)
     req(input$y_cor_type)
@@ -1257,19 +1317,25 @@ Row
 
 ```{r correlation_5}
 df_numeric_cor <- reactive({
+    
     req(df_analysis_cor())
+    
     df_analysis_cor() %>% 
         select(where(is.numeric))
+    
 })
 
-output$tbl_numeric_cor <- renderTable(
+output$tbl_numeric_cor <- renderTable({
+    
     if(ncol(df_numeric_cor()) != 0 & input$y_cor != input$x_cor){
+        
         df_numeric_cor() %>% 
             my_skim() %>% 
             yank('numeric') %>% 
             rename(Variable = skim_variable)
+        
     }
-)
+}, digits = 3)
 
 tableOutput('tbl_numeric_cor')
 ```
@@ -1278,20 +1344,26 @@ tableOutput('tbl_numeric_cor')
 
 ```{r correlation_6}
 df_categorical_cor <- reactive({
+    
     req(df_analysis_cor())
+    
     df_analysis_cor() %>% 
         select(where(is.factor))
+    
 })
 
-output$tbl_categorical_cor <- renderTable(
+output$tbl_categorical_cor <- renderTable({
+    
     if(ncol(df_categorical_cor()) != 0){
+        
         df_categorical_cor() %>% 
             my_skim() %>% 
             yank('factor') %>% 
             rename(Variable = skim_variable,
                    `Unique levels` = n_unique)
+        
     }
-)
+}, digits = 3)
 
 tableOutput('tbl_categorical_cor')
 ```
@@ -1302,6 +1374,7 @@ tableOutput('tbl_categorical_cor')
 output$plotcor <- renderPlot(
 
     if(ncol(req(df_analysis_cor())) == 2){
+        
        ggplot(data = df_analysis_cor()) +
             aes(x = x_variable,
                 y = y_variable) +
@@ -1325,7 +1398,7 @@ plotOutput('plotcor')
 ### Analysis output
 
 ```{r correlation_8}
-output$corrtest <- renderTable(
+output$corrtest <- renderTable({
     
     if(ncol(req(df_analysis_cor())) == 2){
         
@@ -1419,7 +1492,7 @@ output$corrtest <- renderTable(
         }
     }
     
-)
+}, digits = 3)
 
 tableOutput('corrtest')
 ```
@@ -1440,20 +1513,26 @@ hr()
 # Select variables
 ## Y-axis variable
 output$rowtab <- renderUI({
+    
     req(df_categorical())
+    
     selectInput(inputId = 'row_tab',
                 label = 'Choose row variable',
                 choices = names(df_categorical()))
+    
     })
 
 uiOutput('rowtab')
 
 ## x-axis variable
 output$columntab <- renderUI({
+    
     req(df_categorical())
+    
     selectInput(inputId = 'column_tab',
                 label = 'Choose column variable',
                 choices = names(df_categorical()))
+    
     })
 
 uiOutput('columntab')
@@ -1462,8 +1541,8 @@ radioButtons(inputId = 'tab_test',
              label = 'Choose test',
              choices = c("Pearson's chi-squared test (or Fisher's exact test if any expected values < 5)" = 'chi',
                          'Cochran-Mantel-Haenszel test (CMH) (row and column variables are ordinal)' = 'cmh',
-                         'CMH test (only the row variable is ordinal)' = 'cmh_y',
-                         'CMH test (only the column variable is ordinal)' = 'cmh_x'))
+                         'CMH test (only the row variable is ordinal)' = 'cmh_row',
+                         'CMH test (only the column variable is ordinal)' = 'cmh_column'))
 ```
 
 ```{r tables_2}
@@ -1477,7 +1556,6 @@ df_xtab <- reactive({
     
 })
 ```
-
 
 Row 
 -------------------------------------
@@ -1555,7 +1633,7 @@ output$tabresult <- renderTable({
             
         } else if(input$tab_test == 'cmh'){
             
-            cmh.cor <- CMHtest(t(table(df_xtab())),
+            cmh.cor <- CMHtest(table(df_xtab()),
                                types = 'cor') %>% 
                 .$table %>% 
                 as_tibble() %>% 
@@ -1568,10 +1646,41 @@ output$tabresult <- renderTable({
             bind_cols(n, cmh.cor) %>% 
                 select(Method, Alternative, N, Statistic, DF, `p-value`)
             
+        } else if(input$tab_test == 'cmh_row'){
+            
+            # Column mean scores treats the table rows as ordinal
+            cmh.cmeans <- CMHtest(table(df_xtab()),
+                                  types = 'cmeans') %>% 
+                .$table %>% 
+                as_tibble() %>% 
+                rename(Statistic = Chisq,
+                       DF = Df,
+                       'p-value' = Prob) %>% 
+                mutate(Method = 'CMH test (ordinal rows)',
+                       Alternative = 'Two-sided')
+            
+            bind_cols(n, cmh.cmeans) %>% 
+                select(Method, Alternative, N, Statistic, DF, `p-value`)
+            
+        } else if(input$tab_test == 'cmh_column'){
+            
+            # Row mean scores treats the table columns as ordinal
+            cmh.rmeans <- CMHtest(table(df_xtab()),
+                                  types = 'rmeans') %>% 
+                .$table %>% 
+                as_tibble() %>% 
+                rename(Statistic = Chisq,
+                       DF = Df,
+                       'p-value' = Prob) %>% 
+                mutate(Method = 'CMH test (ordinal columns)',
+                       Alternative = 'Two-sided')
+            
+            bind_cols(n, cmh.rmeans) %>% 
+                select(Method, Alternative, N, Statistic, DF, `p-value`)
+            
         }
     }
-})
+}, digits = 3)
 
 tableOutput('tabresult')
-
 ```
