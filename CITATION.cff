@@ -1,8 +1,10 @@
-cff-version: 1.1.0
+cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-  - family-names: Peter
-    given-names: Kamerman
-title: statr: online statistical tests
+- family-names: "Peter"
+  given-names: "Kamerman"
+title: "statr: online statistical tests"
 version: v0.1
+doi: 10.5281/zenodo.6302902
 date-released: 2022-02-28
+url: "https://github.com/kamermanpr/painblogr-statr"
