@@ -1,6 +1,6 @@
 # statr
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5977332.svg)](https://doi.org/10.5281/zenodo.5977332)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6302902.svg)](https://doi.org/10.5281/zenodo.6302902)
 
 R Shiny app containing basic statistical tests.
 
