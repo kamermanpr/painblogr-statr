@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-- family-names: "Peter"
-  given-names: "Kamerman"
+- family-names: "Kamerman"
+  given-names: "Peter"
 title: "statr: online statistical tests"
 version: 0.2
 doi: 10.5281/zenodo.6302902
