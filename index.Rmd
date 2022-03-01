@@ -211,7 +211,7 @@ To download a dataset to play around with on the app, we recommend [Allison Hors
 
 The app was developed by Peter Kamerman (WWW: [painblogr.org](https://www.painblogr.org){ target='_blank'}, GitHub: [kamermanpr](https://github.com/kamermanpr){ target='_blank' }).
 
-Please cite this app as: Kamerman PR (2022). statr: online statistical tests. Version: 0.1. DOI: [10.5281/zenodo.6302902](https://doi.org/10.5281/zenodo.6302902).
+Please cite this app as: Kamerman PR (2022). statr: online statistical tests. Version: 0.2. DOI: [10.5281/zenodo.6302902](https://doi.org/10.5281/zenodo.6302902).
 
 **License**  
 
