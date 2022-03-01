@@ -485,7 +485,7 @@ p(span(style="font-size:125%;", 'Additional options'))
 
 # Select whether to calculate effect size
 checkboxInput(inputId = 'effect_size',
-              label = 'Calculate effect size (Note: bais-corrected and accelerated bootstrapped 95% confidence intervals, with 1000 replications, so calculation can take a while to perform...be patient)',
+              label = 'Calculate effect size (Note: bias-corrected and accelerated bootstrapped 95% confidence intervals, with 1000 replications, so calculation can take a while to perform...be patient)',
               value = FALSE)
  
 # Select whether to perform pairwise tests 
@@ -1123,8 +1123,13 @@ output$ols <- renderTable({
     if(ncol(df_analysis_ols()) == 2){
         
         mod_ols <- lm(y_variable ~ x_variable, data = df_analysis_ols())
-        model_parameters(mod_ols)
-        
+        model_parameters(mod_ols) %>% 
+            select(Coefficient, SE, CI_low, CI_high, t, df_error, p) %>% 
+            setNames(nm = c('Coefficient', 'Standard Error', 
+                            '95% CI lower limit',
+                            '95% CI upper limit', 
+                            't', 'DF', 'p-value'))
+      
     }
     
 }, digits = 3)
@@ -1582,7 +1587,7 @@ output$crosstab <- renderPrint({
 verbatimTextOutput('crosstab')
 ```
 
-### Mosaic plot (2-way tables only, set ID column to 'None')
+### Data visualisation (mosaic plot)
 
 ```{r tables_4}
 output$mosaic <- renderPlot({
