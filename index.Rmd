@@ -1124,8 +1124,10 @@ output$ols <- renderTable({
         
         mod_ols <- lm(y_variable ~ x_variable, data = df_analysis_ols())
         model_parameters(mod_ols) %>% 
-            select(Coefficient, SE, CI_low, CI_high, t, df_error, p) %>% 
-            setNames(nm = c('Coefficient', 'Standard Error', 
+            select(Parameter, Coefficient, SE, CI_low, CI_high, 
+                   t, df_error, p) %>% 
+            setNames(nm = c('', 'Coefficient', 
+                            'Standard Error', 
                             '95% CI lower limit',
                             '95% CI upper limit', 
                             't', 'DF', 'p-value'))
